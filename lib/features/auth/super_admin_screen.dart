@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -142,7 +143,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
             ),
           ),
           Expanded(
-            child: StreamBuilder(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _invitations.snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
