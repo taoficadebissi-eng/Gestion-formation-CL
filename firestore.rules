@@ -27,14 +27,15 @@ service cloud.firestore {
     // FONCTIONS UTILITAIRES
     // ========================================
 
+    // Connecté ET e-mail vérifié : un compte non vérifié n'a accès à rien,
+    // sauf à lire un code d'invitation précis pendant l'inscription.
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.token.email_verified == true;
     }
 
     function isSuperAdmin() {
       return signedIn()
-        && request.auth.token.email == 'taoficadebissi@gmail.com'
-        && request.auth.token.email_verified == true;
+        && request.auth.token.email == 'taoficadebissi@gmail.com';
     }
 
     function hasProfile() {
@@ -486,7 +487,8 @@ service cloud.firestore {
     // réservé au super-admin. Un code ne peut être consommé qu'une fois, par
     // l'utilisateur qui s'inscrit (voir aussi la règle de création de profil).
     match /invitations/{token} {
-      allow get: if signedIn();
+      // Contrôle du code pendant l'inscription, avant vérification de l'e-mail.
+      allow get: if request.auth != null;
       allow list: if isSuperAdmin();
 
       allow create: if isSuperAdmin()

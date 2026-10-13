@@ -9,9 +9,15 @@ final userServiceProvider = Provider<UserService>((ref) => UserService());
 
 final userProfileProvider = StreamProvider<UserModel?>((ref) {
   final authState = ref.watch(authStateProvider);
+  ref.watch(verificationTickProvider);
   return authState.when(
     data: (User? utilisateur) {
-      if (utilisateur == null) return Stream.value(null);
+      // Tant que l'e-mail n'est pas vérifié, les règles Firestore refusent
+      // tout accès : on n'ouvre donc pas de flux.
+      if (utilisateur == null ||
+          FirebaseAuth.instance.currentUser?.emailVerified != true) {
+        return Stream.value(null);
+      }
       return ref.watch(userServiceProvider).ecouterUtilisateur(utilisateur.uid);
     },
     loading: () => Stream.value(null),

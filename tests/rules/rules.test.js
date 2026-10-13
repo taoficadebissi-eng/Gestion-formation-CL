@@ -13,14 +13,15 @@ let env;
 const ctx = {
   admin: () => env.authenticatedContext('admin1', { email: 'admin1@x.com', email_verified: true }),
   admin2: () => env.authenticatedContext('admin2', { email: 'admin2@x.com', email_verified: true }),
-  form: () => env.authenticatedContext('form1', { email: 'form1@x.com' }),
-  app: () => env.authenticatedContext('app1', { email: 'app1@x.com' }),
-  app2: () => env.authenticatedContext('app2', { email: 'app2@x.com' }),
-  app3: () => env.authenticatedContext('app3', { email: 'app3@x.com' }),
-  autre: () => env.authenticatedContext('autre1', { email: 'autre@x.com' }),
+  form: () => env.authenticatedContext('form1', { email: 'form1@x.com', email_verified: true }),
+  app: () => env.authenticatedContext('app1', { email: 'app1@x.com', email_verified: true }),
+  app2: () => env.authenticatedContext('app2', { email: 'app2@x.com', email_verified: true }),
+  app3: () => env.authenticatedContext('app3', { email: 'app3@x.com', email_verified: true }),
+  autre: () => env.authenticatedContext('autre1', { email: 'autre@x.com', email_verified: true }),
   nouveau: () => env.authenticatedContext('new1', { email: 'new1@x.com', email_verified: true }),
   sup: () => env.authenticatedContext('sup', { email: SUPER_EMAIL, email_verified: true }),
   supNonVerifie: () => env.authenticatedContext('sup2', { email: SUPER_EMAIL, email_verified: false }),
+  nonVerifie: () => env.authenticatedContext('nv1', { email: 'nv1@x.com', email_verified: false }),
   anon: () => env.unauthenticatedContext(),
 };
 const db = (c) => c.firestore();
@@ -280,5 +281,24 @@ describe('CoursLibre (meme projet)', () => {
     await assertFails(setDoc(ref(ctx.anon()), { total: 500 }));
     await assertFails(setDoc(ref(ctx.anon()), { total: 3, autre: 1 }));
     await assertFails(deleteDoc(ref(ctx.sup())));
+  });
+});
+
+describe('e-mail non verifie', () => {
+  it("un compte non verifie n'a acces a rien, sauf lire un code precis", async () => {
+    await env.withSecurityRulesDisabled(async (c) => setDoc(doc(c.firestore(), 'users/nv1'), profil('nv1', 'apprenant', 'c1')));
+    const d = db(ctx.nonVerifie());
+    await assertFails(getDoc(doc(d, 'users/nv1')));
+    await assertFails(getDocs(query(collection(d, 'formations'), where('centre_id', '==', 'c1'))));
+    await assertSucceeds(getDoc(doc(d, 'invitations/INV-AAAA-BBBB')));
+    await assertFails(getDocs(collection(d, 'invitations')));
+  });
+
+  it("l'inscription admin exige un e-mail verifie", async () => {
+    const d = db(ctx.nonVerifie());
+    const b = writeBatch(d);
+    b.set(doc(d, 'users/nv1'), { ...profil('nv1', 'admin', null), email: 'nv1@x.com', invitation_token: 'INV-AAAA-BBBB' });
+    b.update(doc(d, 'invitations/INV-AAAA-BBBB'), { utilise: true, admin_id: 'nv1' });
+    await assertFails(b.commit());
   });
 });

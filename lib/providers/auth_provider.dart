@@ -3,6 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 
+/// Incrémenté après chaque vérification d'e-mail réussie : `User` ne notifie
+/// pas ce changement, les providers et le routeur écoutent ce compteur.
+final verificationTickProvider = StateProvider<int>((ref) => 0);
+
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final authStateProvider = StreamProvider<User?>((ref) {
@@ -12,7 +16,21 @@ final authStateProvider = StreamProvider<User?>((ref) {
 class AuthNotifier extends StateNotifier<AsyncValue<void>> {
   final AuthService _authService;
 
-  AuthNotifier(this._authService) : super(const AsyncValue.data(null));
+  final Ref _ref;
+
+  AuthNotifier(this._authService, this._ref)
+    : super(const AsyncValue.data(null));
+
+  /// Recharge l'utilisateur ; renvoie true si son e-mail est vérifié.
+  Future<bool> verifierEmail() async {
+    final verifie = await _authService.verifierEmail();
+    if (verifie) _ref.read(verificationTickProvider.notifier).state++;
+    return verifie;
+  }
+
+  Future<void> renvoyerVerificationEmail() =>
+      _authService.envoyerVerificationEmail();
+
 
   Future<void> connexion(String email, String password) async {
     state = const AsyncValue.loading();
@@ -104,5 +122,5 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
 
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<void>>((ref) {
-      return AuthNotifier(ref.watch(authServiceProvider));
+      return AuthNotifier(ref.watch(authServiceProvider), ref);
     });

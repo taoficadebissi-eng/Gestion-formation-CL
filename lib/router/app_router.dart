@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
+import '../features/auth/verification_email_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../features/auth/changer_mot_de_passe_screen.dart';
 import '../features/auth/mot_de_passe_oublie_screen.dart';
 import '../features/auth/super_admin_screen.dart';
@@ -54,6 +56,7 @@ import '../core/firebase/firestore_helpers.dart';
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
     ref.listen(authStateProvider, (_, _) => notifyListeners());
+    ref.listen(verificationTickProvider, (_, _) => notifyListeners());
     ref.listen(userProfileProvider, (_, _) => notifyListeners());
     ref.listen(centresDuAdminProvider, (_, _) => notifyListeners());
   }
@@ -73,7 +76,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final userProfileAsync = ref.read(userProfileProvider);
       final centresAsync = ref.read(centresDuAdminProvider);
 
-      final firebaseUser = authState.value;
+      // `currentUser` (et non la valeur du stream) : `emailVerified` est mis
+      // à jour sur l'objet courant après `reload()`.
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final emailNonVerifie =
+          authState.hasValue && firebaseUser != null && !firebaseUser.emailVerified;
+      if (emailNonVerifie) {
+        return loc == '/verification-email' ? null : '/verification-email';
+      }
       // Le super-admin n'a pas de profil dans `users` : il est reconnu par
       // son e-mail vérifié (les règles Firestore refont la même vérification).
       final estSuperAdmin =
@@ -112,6 +122,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isLoading) {
         return loc == '/splash' ? null : '/splash';
       }
+
+      // Sans compte (ou e-mail déjà vérifié), l'écran de vérification n'a
+      // plus lieu d'être.
+      if (loc == '/verification-email') return '/login';
 
       if (estSuperAdmin) {
         return loc == '/super-admin' ? null : '/super-admin';
@@ -184,6 +198,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/connexion',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/verification-email',
+        builder: (context, state) => const VerificationEmailScreen(),
       ),
       GoRoute(
         path: '/splash',

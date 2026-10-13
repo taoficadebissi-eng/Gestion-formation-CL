@@ -125,17 +125,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
       BlurredToast.show(
         context,
-        'Compte admin cree avec succes !',
-        icon: Icons.check_circle_outline,
-        duration: const Duration(seconds: 2),
+        'Compte cree : verifiez votre e-mail pour continuer.',
+        icon: Icons.mark_email_unread_outlined,
+        duration: const Duration(seconds: 3),
       );
-      context.go('/admin/dashboard');
+      // Le routeur redirige vers l'écran de vérification de l'e-mail.
+      context.go('/verification-email');
     } catch (e) {
       if (!mounted) return;
 
       String message = 'Erreur lors de la creation du compte';
       if (e.toString().contains('invitation_invalide')) {
         message = "Code d'invitation invalide ou deja utilise";
+      } else if (e.toString().contains('email-already-in-use')) {
+        message = 'Cet e-mail est deja utilise';
       }
       BlurredToast.show(context, message, icon: Icons.error_outline);
     }
