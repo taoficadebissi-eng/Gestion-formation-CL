@@ -1,0 +1,297 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========================================
+    // FONCTIONS HELPER
+    // ========================================
+    
+    // V�rifie si l'utilisateur est authentifi�
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // R�cup�re les donn�es de l'utilisateur connect�
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // V�rifie si l'utilisateur est un admin
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+    
+    // V�rifie si l'utilisateur est un formateur
+    function isFormateur() {
+      return isAuthenticated() && getUserData().role == 'formateur';
+    }
+    
+    // V�rifie si l'utilisateur est un apprenant
+    function isApprenant() {
+      return isAuthenticated() && getUserData().role == 'apprenant';
+    }
+    
+    // R�cup�re le centreId de l'utilisateur connect�
+    function getUserCentreId() {
+      return getUserData().centreId;
+    }
+    
+    // V�rifie si l'admin poss�de le centre (adminId == uid de l'admin)
+    function isOwnerOfCentre(centreId) {
+      return isAdmin() && 
+             get(/databases/$(database)/documents/centres/$(centreId)).data.adminId == request.auth.uid;
+    }
+    
+    // V�rifie si l'utilisateur appartient au centre
+    function isUserInCentre(centreId) {
+      return isAuthenticated() && getUserCentreId() == centreId;
+    }
+    
+    // ========================================
+    // COLLECTION : CENTRES
+    // ========================================
+    match /centres/{centreId} {
+      // Lecture : admin propriétaire du centre (comparaison directe sur
+      // resource.data, PAS via isOwnerOfCentre/get() : un get() sur
+      // centres/$(centreId) depuis la règle de centres/{centreId} elle-même
+      // est un self-get qui rend toute requête "list" (ex: recherche du
+      // centre de l'admin par adminId) invalidable par Firestore -> deny
+      // systematique. resource.data est deja le document evalue, donc
+      // directement comparable au filtre de la requete.
+      allow read: if isAuthenticated() &&
+                     ((isAdmin() && resource.data.adminId == request.auth.uid) ||
+                      isUserInCentre(centreId));
+
+      // Création : seulement si l'admin crée son propre centre
+      allow create: if isAuthenticated() &&
+                       request.resource.data.adminId == request.auth.uid;
+
+      // Modification : seulement le propriétaire du centre
+      allow update, delete: if isAdmin() && resource.data.adminId == request.auth.uid;
+    }
+    
+    // ========================================
+    // COLLECTION : USERS
+    // ========================================
+    match /users/{userId} {
+      // Lecture : 
+      // - L'utilisateur lui-m�me peut lire son profil
+      // - Admin peut lire les users de SES centres
+      // - Formateur/Apprenant peuvent lire les users de LEUR centre
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || 
+                      (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                      (isFormateur() && isUserInCentre(resource.data.centreId)) ||
+                      (isApprenant() && isUserInCentre(resource.data.centreId)));
+      
+      // Cr�ation :
+      // - Admin peut cr�er des users dans ses centres
+      // - L'utilisateur peut cr�er son propre compte (inscription)
+      allow create: if isAuthenticated() && 
+                       (request.auth.uid == userId || 
+                        (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)));
+      
+      // Modification :
+      // - L'utilisateur peut modifier son propre profil (sauf role et centreId)
+      // - Admin peut modifier les users de ses centres
+      allow update: if isAuthenticated() && 
+                       (
+                         // L'utilisateur modifie son propre profil
+                         (request.auth.uid == userId && 
+                          request.resource.data.role == resource.data.role &&
+                          request.resource.data.centreId == resource.data.centreId) ||
+                         // Admin modifie un user de son centre
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId))
+                       );
+      
+      // Suppression : seulement l'admin propri�taire du centre
+      allow delete: if isAdmin() && isOwnerOfCentre(resource.data.centreId);
+    }
+    
+    // ========================================
+    // COLLECTION : FORMATIONS
+    // ========================================
+    match /formations/{formationId} {
+      // Lecture : utilisateurs du même centre, ou admin propriétaire du
+      // centre (l'admin a un centreId vide sur son propre profil, donc
+      // isUserInCentre() seul est toujours faux pour lui — voir README
+      // section 7 "Rôle-based centreId resolution")
+      allow read: if isAuthenticated() &&
+                     (isUserInCentre(resource.data.centreId) ||
+                      (isAdmin() && isOwnerOfCentre(resource.data.centreId)));
+      
+      // Cr�ation : admin ou formateur du centre
+      allow create: if isAuthenticated() && 
+                       (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
+                       (isFormateur() && isUserInCentre(request.resource.data.centreId));
+      
+      // Modification : admin propri�taire ou formateur qui a cr�� la formation
+      allow update: if isAuthenticated() && 
+                       (
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && resource.data.formateurId == request.auth.uid)
+                       );
+      
+      // Suppression : admin propri�taire ou formateur qui a cr�� la formation
+      allow delete: if isAuthenticated() && 
+                       (
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && resource.data.formateurId == request.auth.uid)
+                       );
+    }
+    
+    // ========================================
+    // COLLECTION : SESSIONS
+    // ========================================
+    match /sessions/{sessionId} {
+      // Lecture : utilisateurs du même centre, ou admin propriétaire du
+      // centre (même raison que pour formations : centreId vide sur le
+      // profil admin)
+      allow read: if isAuthenticated() &&
+                     (isUserInCentre(resource.data.centreId) ||
+                      (isAdmin() && isOwnerOfCentre(resource.data.centreId)));
+      
+      // Cr�ation : admin ou formateur du centre
+      allow create: if isAuthenticated() && 
+                       (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
+                       (isFormateur() && isUserInCentre(request.resource.data.centreId));
+      
+      // Modification : admin propri�taire ou formateur du centre
+      allow update: if isAuthenticated() && 
+                       (
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(resource.data.centreId))
+                       );
+      
+      // Suppression : admin propri�taire ou formateur du centre
+      allow delete: if isAuthenticated() && 
+                       (
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(resource.data.centreId))
+                       );
+    }
+    
+    // ========================================
+    // COLLECTION : INSCRIPTIONS
+    // ========================================
+    match /inscriptions/{inscriptionId} {
+      // Lecture :
+      // - L'apprenant peut lire ses propres inscriptions
+      // - Admin/Formateur du centre peuvent lire toutes les inscriptions du centre
+      allow read: if isAuthenticated() && 
+                     (
+                       (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
+                       (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                       (isFormateur() && isUserInCentre(resource.data.centreId))
+                     );
+      
+      // Cr�ation : apprenant peut s'inscrire lui-m�me, admin/formateur peuvent inscrire quelqu'un
+      allow create: if isAuthenticated() && 
+                       (
+                         (isApprenant() && request.resource.data.apprenantId == request.auth.uid && 
+                          isUserInCentre(request.resource.data.centreId)) ||
+                         (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(request.resource.data.centreId))
+                       );
+      
+      // Modification : apprenant peut modifier son inscription, admin/formateur du centre
+      allow update: if isAuthenticated() && 
+                       (
+                         (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(resource.data.centreId))
+                       );
+      
+      // Suppression : apprenant peut annuler son inscription, admin/formateur du centre
+      allow delete: if isAuthenticated() && 
+                       (
+                         (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(resource.data.centreId))
+                       );
+    }
+    
+    // ========================================
+    // COLLECTION : PRESENCES
+    // ========================================
+    match /presences/{presenceId} {
+      // Lecture :
+      // - L'apprenant peut lire ses propres pr�sences
+      // - Admin/Formateur du centre peuvent lire toutes les pr�sences du centre
+      allow read: if isAuthenticated() && 
+                     (
+                       (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
+                       (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                       (isFormateur() && isUserInCentre(resource.data.centreId))
+                     );
+      
+      // Creation : admin ou formateur du centre (pour marquer une premiere presence)
+      // NOTE : sur une creation, "resource" est null (le document n'existe pas
+      // encore) - il faut donc lire le centreId depuis "request.resource", pas
+      // depuis "resource". C'etait le bug qui rendait le marquage de presence
+      // impossible : la regle combinee create+update utilisait resource.data
+      // pour les deux cas, donc toute premiere creation de presence pour une
+      // session/apprenant echouait silencieusement (permission-denied).
+      allow create: if isAuthenticated() &&
+                       (
+                         (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(request.resource.data.centreId))
+                       );
+
+      // Modification : admin ou formateur du centre (pour corriger une presence existante)
+      allow update: if isAuthenticated() &&
+                       (
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(resource.data.centreId))
+                       );
+      
+      // Suppression : admin ou formateur du centre
+      allow delete: if isAuthenticated() && 
+                       (
+                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
+                         (isFormateur() && isUserInCentre(resource.data.centreId))
+                       );
+    }
+    
+    // ========================================
+    // COLLECTION : INVITATIONS
+    // ========================================
+    match /invitations/{invitationId} {
+      // Lecture : admin seulement
+      allow read: if isAdmin();
+      
+      // Cr�ation : admin seulement
+      allow create: if isAdmin() && request.resource.data.adminId == request.auth.uid;
+      
+      // Modification : admin propri�taire de l'invitation
+      allow update: if isAdmin() && resource.data.adminId == request.auth.uid;
+      
+      // Suppression : admin propri�taire de l'invitation
+      allow delete: if isAdmin() && resource.data.adminId == request.auth.uid;
+    }
+
+    // ========================================
+    // COLLECTION : COMPTEUR (visiteurs CoursLibre)
+    // ========================================
+    // Compteur custom Firestore, incrémenté sans authentification depuis la
+    // page publique CoursLibre (1 écriture/appareil/jour côté client via
+    // shared_preferences). Écriture publique volontairement limitée à un
+    // strict incrément de 1 sur le seul champ "total", pour rester
+    // exploitable sans Cloud Functions (plan Spark) sans ouvrir la porte à
+    // une falsification arbitraire du compteur.
+    match /compteur/{docId} {
+      allow read: if true;
+
+      allow create: if docId == 'visiteurs' &&
+                       request.resource.data.total == 1;
+
+      allow update: if docId == 'visiteurs' &&
+                       request.resource.data.total == resource.data.total + 1 &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total']);
+
+      allow delete: if false;
+    }
+
+  }
+}

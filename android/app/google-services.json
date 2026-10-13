@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "696644483089",
+    "project_id": "gestion-de-formation-5b049",
+    "storage_bucket": "gestion-de-formation-5b049.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:696644483089:android:11633fb948f54da6fd59b0",
+        "android_client_info": {
+          "package_name": "com.example.gestion"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClWOQRbqW_810tF7pjYm_fYpkt0aXJHVk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
