@@ -159,7 +159,8 @@ class _AjouterFormationScreenState
         centreId: centreId,
         prerequisId: _prerequisId,
         imageUrl: _imageUrl,
-        fraisTotal: double.tryParse(
+        fraisTotal:
+            double.tryParse(
               _fraisTotalController.text.trim().replaceAll(',', '.'),
             ) ??
             0,
@@ -215,9 +216,7 @@ class _AjouterFormationScreenState
                     style: const TextStyle(color: AppColors.error),
                   ),
                 ),
-              FormationImagePicker(
-                onUrlChangee: (url) => _imageUrl = url,
-              ),
+              FormationImagePicker(onUrlChangee: (url) => _imageUrl = url),
               const SizedBox(height: 16),
               TextField(
                 controller: _titreController,
@@ -247,7 +246,9 @@ class _AjouterFormationScreenState
               const SizedBox(height: 16),
               TextField(
                 controller: _fraisTotalController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: _buildInputDecoration(
                   'Frais total (FCFA, optionnel)',
                   Icons.payments_outlined,

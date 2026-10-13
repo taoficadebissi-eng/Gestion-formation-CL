@@ -33,9 +33,7 @@ final sessionsCentreProvider = StreamProvider<List<SessionModel>>((ref) {
   return centreIdAsync.when(
     data: (centreId) {
       if (centreId == null || centreId.isEmpty) return Stream.value([]);
-      return ref
-          .watch(sessionServiceProvider)
-          .ecouterSessionsCentre(centreId);
+      return ref.watch(sessionServiceProvider).ecouterSessionsCentre(centreId);
     },
     loading: () => Stream.value([]),
     error: (_, _) => Stream.value([]),

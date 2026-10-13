@@ -8,7 +8,5 @@ final paiementServiceProvider = Provider<PaiementService>(
 
 final paiementsInscriptionProvider =
     StreamProvider.family<List<PaiementModel>, String>((ref, inscriptionId) {
-      return ref
-          .watch(paiementServiceProvider)
-          .ecouterPaiements(inscriptionId);
+      return ref.watch(paiementServiceProvider).ecouterPaiements(inscriptionId);
     });

@@ -74,8 +74,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/'),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
       ),
       body: sessionsAsync.when(
@@ -98,7 +97,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           return Column(
             children: [
               _EnTeteMois(
-                libelle: '${_mois[_moisAffiche.month - 1]} ${_moisAffiche.year}',
+                libelle:
+                    '${_mois[_moisAffiche.month - 1]} ${_moisAffiche.year}',
                 onPrecedent: () => _changerMois(-1),
                 onSuivant: () => _changerMois(1),
                 onAujourdhui: () {
@@ -175,7 +175,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   ),
                                 );
                               } else {
-                                context.go('/formations/${session.formationId}');
+                                context.go(
+                                  '/formations/${session.formationId}',
+                                );
                               }
                             },
                             child: Container(

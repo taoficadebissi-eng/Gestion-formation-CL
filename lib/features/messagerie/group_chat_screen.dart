@@ -54,7 +54,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     if (texte.isEmpty) return;
     setState(() => _envoiEnCours = true);
     try {
-      await ref.read(messageServiceProvider).envoyer(
+      await ref
+          .read(messageServiceProvider)
+          .envoyer(
             MessageModel(
               id: '',
               formationId: widget.formationId,
@@ -67,7 +69,11 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       _controller.clear();
     } catch (e) {
       if (mounted) {
-        BlurredToast.show(context, 'Erreur lors de l\'envoi : $e', icon: Icons.error_outline);
+        BlurredToast.show(
+          context,
+          'Erreur lors de l\'envoi : $e',
+          icon: Icons.error_outline,
+        );
       }
     } finally {
       if (mounted) setState(() => _envoiEnCours = false);
@@ -76,7 +82,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(messagesFormationProvider(widget.formationId));
+    final messagesAsync = ref.watch(
+      messagesFormationProvider(widget.formationId),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -104,7 +112,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                 }
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+                    _scrollController.jumpTo(
+                      _scrollController.position.maxScrollExtent,
+                    );
                   }
                 });
                 return ListView.builder(
@@ -114,17 +124,29 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final estMoi = message.auteurId == widget.userId;
-                    final nom = estMoi ? 'Vous' : (widget.nomParUid[message.auteurId] ?? 'Membre du centre');
+                    final nom = estMoi
+                        ? 'Vous'
+                        : (widget.nomParUid[message.auteurId] ??
+                              'Membre du centre');
                     return Align(
-                      alignment: estMoi ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: estMoi
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        ),
                         margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: estMoi ? AppColors.primary : AppColors.surface,
                           borderRadius: BorderRadius.circular(14),
-                          border: estMoi ? null : Border.all(color: AppColors.border),
+                          border: estMoi
+                              ? null
+                              : Border.all(color: AppColors.border),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,18 +154,28 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                             if (!estMoi)
                               Text(
                                 nom,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             Text(
                               message.texte,
-                              style: TextStyle(color: estMoi ? Colors.white : AppColors.textPrimary),
+                              style: TextStyle(
+                                color: estMoi
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _formatHeure(message.dateEnvoi),
                               style: TextStyle(
                                 fontSize: 10,
-                                color: estMoi ? Colors.white70 : AppColors.textSecondary,
+                                color: estMoi
+                                    ? Colors.white70
+                                    : AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -168,7 +200,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         hintText: 'Ecrire un message...',
                         filled: true,
                         fillColor: AppColors.surface,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: const BorderSide(color: AppColors.border),
@@ -179,9 +214,16 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   _envoiEnCours
-                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2.5))
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
                       : IconButton(
-                          icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: AppColors.primary,
+                          ),
                           onPressed: _envoyer,
                         ),
                 ],

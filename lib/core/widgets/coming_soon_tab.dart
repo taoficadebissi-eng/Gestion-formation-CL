@@ -52,12 +52,19 @@ class ComingSoonTab extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icone, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+              Icon(
+                icone,
+                size: 64,
+                color: AppColors.textSecondary.withValues(alpha: 0.4),
+              ),
               const SizedBox(height: 16),
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 15,
+                ),
               ),
             ],
           ),

@@ -30,7 +30,8 @@ class DetailPaiementSheet extends ConsumerStatefulWidget {
   const DetailPaiementSheet({super.key, required this.inscription});
 
   @override
-  ConsumerState<DetailPaiementSheet> createState() => _DetailPaiementSheetState();
+  ConsumerState<DetailPaiementSheet> createState() =>
+      _DetailPaiementSheetState();
 }
 
 class _DetailPaiementSheetState extends ConsumerState<DetailPaiementSheet> {
@@ -46,21 +47,29 @@ class _DetailPaiementSheetState extends ConsumerState<DetailPaiementSheet> {
   }
 
   Future<void> _enregistrer() async {
-    final montant = double.tryParse(_montantController.text.trim().replaceAll(',', '.'));
+    final montant = double.tryParse(
+      _montantController.text.trim().replaceAll(',', '.'),
+    );
     if (montant == null || montant <= 0) {
       BlurredToast.show(context, 'Montant invalide', icon: Icons.error_outline);
       return;
     }
     setState(() => _enCours = true);
     try {
-      await ref.read(inscriptionNotifierProvider.notifier).enregistrerPaiement(
+      await ref
+          .read(inscriptionNotifierProvider.notifier)
+          .enregistrerPaiement(
             inscriptionId: widget.inscription.id,
             montant: montant,
             methode: 'manuel',
             reference: _referenceController.text.trim(),
           );
       if (mounted) {
-        BlurredToast.show(context, 'Paiement enregistre !', icon: Icons.check_circle_outline);
+        BlurredToast.show(
+          context,
+          'Paiement enregistre !',
+          icon: Icons.check_circle_outline,
+        );
         _montantController.clear();
         _referenceController.clear();
       }
@@ -99,10 +108,15 @@ class _DetailPaiementSheetState extends ConsumerState<DetailPaiementSheet> {
   @override
   Widget build(BuildContext context) {
     final formations = ref.watch(formationsProvider).value ?? [];
-    final formation = formations.where((f) => f.id == widget.inscription.formationId).firstOrNull;
+    final formation = formations
+        .where((f) => f.id == widget.inscription.formationId)
+        .firstOrNull;
     final fraisTotal = formation?.fraisTotal ?? 0;
-    final paiementsAsync = ref.watch(paiementsInscriptionProvider(widget.inscription.id));
-    final estBloque = widget.inscription.statutPaiement == StatutPaiement.bloque;
+    final paiementsAsync = ref.watch(
+      paiementsInscriptionProvider(widget.inscription.id),
+    );
+    final estBloque =
+        widget.inscription.statutPaiement == StatutPaiement.bloque;
 
     return SafeArea(
       child: Padding(
@@ -119,43 +133,81 @@ class _DetailPaiementSheetState extends ConsumerState<DetailPaiementSheet> {
             children: [
               Text(
                 widget.inscription.apprenantNom,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
                 formation?.titre ?? '',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _Stat(label: 'Frais total', valeur: _formatMontant(fraisTotal)),
-                  _Stat(label: 'Paye', valeur: _formatMontant(widget.inscription.montantPaye), couleur: AppColors.success),
-                  _Stat(label: 'Restant', valeur: _formatMontant(widget.inscription.montantRestant), couleur: AppColors.error),
+                  _Stat(
+                    label: 'Frais total',
+                    valeur: _formatMontant(fraisTotal),
+                  ),
+                  _Stat(
+                    label: 'Paye',
+                    valeur: _formatMontant(widget.inscription.montantPaye),
+                    couleur: AppColors.success,
+                  ),
+                  _Stat(
+                    label: 'Restant',
+                    valeur: _formatMontant(widget.inscription.montantRestant),
+                    couleur: AppColors.error,
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
-              const Text('Enregistrer un paiement manuel', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text(
+                'Enregistrer un paiement manuel',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _montantController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Montant (FCFA)', prefixIcon: Icon(Icons.payments_outlined)),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Montant (FCFA)',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                ),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _referenceController,
-                decoration: const InputDecoration(labelText: 'Reference (optionnel)', prefixIcon: Icon(Icons.receipt_long_outlined)),
+                decoration: const InputDecoration(
+                  labelText: 'Reference (optionnel)',
+                  prefixIcon: Icon(Icons.receipt_long_outlined),
+                ),
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   icon: _enCours
-                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Icon(Icons.check_rounded),
                   label: const Text('Enregistrer'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: _enCours ? null : _enregistrer,
                 ),
               ),
@@ -163,17 +215,27 @@ class _DetailPaiementSheetState extends ConsumerState<DetailPaiementSheet> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  icon: Icon(estBloque ? Icons.lock_open_outlined : Icons.lock_outline, color: AppColors.error),
+                  icon: Icon(
+                    estBloque ? Icons.lock_open_outlined : Icons.lock_outline,
+                    color: AppColors.error,
+                  ),
                   label: Text(
-                    estBloque ? 'Debloquer l\'acces' : 'Bloquer l\'acces (notes + chat)',
+                    estBloque
+                        ? 'Debloquer l\'acces'
+                        : 'Bloquer l\'acces (notes + chat)',
                     style: const TextStyle(color: AppColors.error),
                   ),
-                  style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.error),
+                  ),
                   onPressed: () => _basculerBlocage(!estBloque),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text('Historique des paiements', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text(
+                'Historique des paiements',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
               paiementsAsync.when(
                 loading: () => const Padding(
@@ -183,16 +245,24 @@ class _DetailPaiementSheetState extends ConsumerState<DetailPaiementSheet> {
                 error: (e, _) => Text('Erreur : $e'),
                 data: (paiements) {
                   if (paiements.isEmpty) {
-                    return const Text('Aucun paiement enregistre', style: TextStyle(color: AppColors.textSecondary));
+                    return const Text(
+                      'Aucun paiement enregistre',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    );
                   }
                   return Column(
                     children: paiements
                         .map(
                           (p) => ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.check_circle_outline, color: AppColors.success),
+                            leading: const Icon(
+                              Icons.check_circle_outline,
+                              color: AppColors.success,
+                            ),
                             title: Text(_formatMontant(p.montant)),
-                            subtitle: Text('${_formatDate(p.date)} — ${p.methode}${p.reference.isNotEmpty ? ' (${p.reference})' : ''}'),
+                            subtitle: Text(
+                              '${_formatDate(p.date)} — ${p.methode}${p.reference.isNotEmpty ? ' (${p.reference})' : ''}',
+                            ),
                           ),
                         )
                         .toList(),
@@ -218,9 +288,19 @@ class _Stat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
         const SizedBox(height: 2),
-        Text(valeur, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: couleur ?? AppColors.textPrimary)),
+        Text(
+          valeur,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: couleur ?? AppColors.textPrimary,
+          ),
+        ),
       ],
     );
   }

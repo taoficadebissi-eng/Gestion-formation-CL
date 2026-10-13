@@ -99,9 +99,7 @@ class AppTheme {
       color: AppColors.surface,
       elevation: 3,
       shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
   );
 

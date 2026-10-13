@@ -1,4 +1,4 @@
-﻿enum StatutInscription { enAttente, confirmee, annulee }
+enum StatutInscription { enAttente, confirmee, annulee }
 
 class ApprenantModel {
   final String id;

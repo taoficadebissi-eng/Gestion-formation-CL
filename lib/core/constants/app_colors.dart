@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 class AppColors {
   AppColors._();
@@ -43,5 +43,9 @@ class AppColors {
 
   // Dégradé de marque "multicolore" : brûlé -> orange -> ambre. Réutilisable
   // pour hero, boutons mis en avant, en-têtes.
-  static const List<Color> brandGradient = [primaryDark, primary, Color(0xFFF2A93C)];
+  static const List<Color> brandGradient = [
+    primaryDark,
+    primary,
+    Color(0xFFF2A93C),
+  ];
 }

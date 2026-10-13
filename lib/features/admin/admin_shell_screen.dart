@@ -28,11 +28,20 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesNonLus = ref.watch(adminMessagesNonLusProvider).value ?? false;
+    final messagesNonLus =
+        ref.watch(adminMessagesNonLusProvider).value ?? false;
 
     final items = [
-      const AppBottomNavItem(icone: Icons.home_outlined, iconeSelectionne: Icons.home_rounded, label: 'Accueil'),
-      const AppBottomNavItem(icone: Icons.book_outlined, iconeSelectionne: Icons.book_rounded, label: 'Formations'),
+      const AppBottomNavItem(
+        icone: Icons.home_outlined,
+        iconeSelectionne: Icons.home_rounded,
+        label: 'Accueil',
+      ),
+      const AppBottomNavItem(
+        icone: Icons.book_outlined,
+        iconeSelectionne: Icons.book_rounded,
+        label: 'Formations',
+      ),
       const AppBottomNavItem(
         icone: Icons.people_outline_rounded,
         iconeSelectionne: Icons.people_rounded,

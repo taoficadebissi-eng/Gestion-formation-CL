@@ -79,12 +79,20 @@ class PaiementsApprenantScreen extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.business_rounded, size: 14, color: Colors.white),
+                  const Icon(
+                    Icons.business_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       nomCentre,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -120,11 +128,18 @@ class PaiementsApprenantScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.payments_outlined, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.payments_outlined,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Aucune formation suivie pour le moment',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -135,7 +150,9 @@ class PaiementsApprenantScreen extends ConsumerWidget {
             itemCount: inscriptions.length,
             itemBuilder: (context, index) {
               final inscription = inscriptions[index];
-              final formation = formations.where((f) => f.id == inscription.formationId).firstOrNull;
+              final formation = formations
+                  .where((f) => f.id == inscription.formationId)
+                  .firstOrNull;
               final (couleur, label) = _styleStatut(inscription.statutPaiement);
               final fraisTotal = formation?.fraisTotal ?? 0;
 
@@ -151,17 +168,35 @@ class PaiementsApprenantScreen extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             formation?.titre ?? 'Formation',
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 16),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: couleur.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                          child: Text(label, style: TextStyle(color: couleur, fontSize: 12, fontWeight: FontWeight.w600)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: couleur.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: couleur,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    if (inscription.statutPaiement == StatutPaiement.bloque) ...[
+                    if (inscription.statutPaiement ==
+                        StatutPaiement.bloque) ...[
                       const SizedBox(height: 8),
                       Text(
                         'Acces aux notes de cours et au chat de groupe restreint tant que le solde n\'est pas regularise.',
@@ -172,13 +207,24 @@ class PaiementsApprenantScreen extends ConsumerWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: _MiniStat(label: 'Frais total', valeur: _formatMontant(fraisTotal)),
+                          child: _MiniStat(
+                            label: 'Frais total',
+                            valeur: _formatMontant(fraisTotal),
+                          ),
                         ),
                         Expanded(
-                          child: _MiniStat(label: 'Paye', valeur: _formatMontant(inscription.montantPaye), couleur: AppColors.success),
+                          child: _MiniStat(
+                            label: 'Paye',
+                            valeur: _formatMontant(inscription.montantPaye),
+                            couleur: AppColors.success,
+                          ),
                         ),
                         Expanded(
-                          child: _MiniStat(label: 'Restant', valeur: _formatMontant(inscription.montantRestant), couleur: AppColors.error),
+                          child: _MiniStat(
+                            label: 'Restant',
+                            valeur: _formatMontant(inscription.montantRestant),
+                            couleur: AppColors.error,
+                          ),
                         ),
                       ],
                     ),
@@ -186,9 +232,13 @@ class PaiementsApprenantScreen extends ConsumerWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: fraisTotal > 0 ? (inscription.montantPaye / fraisTotal).clamp(0, 1) : 0,
+                        value: fraisTotal > 0
+                            ? (inscription.montantPaye / fraisTotal).clamp(0, 1)
+                            : 0,
                         backgroundColor: AppColors.border,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.success,
+                        ),
                         minHeight: 8,
                       ),
                     ),
@@ -199,7 +249,8 @@ class PaiementsApprenantScreen extends ConsumerWidget {
                           child: OutlinedButton.icon(
                             icon: const Icon(Icons.history_rounded, size: 18),
                             label: const Text('Historique'),
-                            onPressed: () => _afficherHistorique(context, inscription.id),
+                            onPressed: () =>
+                                _afficherHistorique(context, inscription.id),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -207,7 +258,10 @@ class PaiementsApprenantScreen extends ConsumerWidget {
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.payments_rounded, size: 18),
                             label: const Text('Payer'),
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: inscription.montantRestant <= 0
                                 ? null
                                 : () => _payerMaintenant(context),
@@ -236,7 +290,10 @@ class PaiementsApprenantScreen extends ConsumerWidget {
           'En attendant, contactez votre centre de formation pour regler votre solde.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Compris')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Compris'),
+          ),
         ],
       ),
     );
@@ -249,7 +306,8 @@ class PaiementsApprenantScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => _HistoriquePaiementsSheet(inscriptionId: inscriptionId),
+      builder: (context) =>
+          _HistoriquePaiementsSheet(inscriptionId: inscriptionId),
     );
   }
 }
@@ -265,11 +323,18 @@ class _MiniStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
         const SizedBox(height: 2),
         Text(
           valeur,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: couleur ?? AppColors.textPrimary),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: couleur ?? AppColors.textPrimary,
+          ),
         ),
       ],
     );
@@ -282,7 +347,9 @@ class _HistoriquePaiementsSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paiementsAsync = ref.watch(paiementsInscriptionProvider(inscriptionId));
+    final paiementsAsync = ref.watch(
+      paiementsInscriptionProvider(inscriptionId),
+    );
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -290,7 +357,10 @@ class _HistoriquePaiementsSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Historique des paiements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Historique des paiements',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
             paiementsAsync.when(
               loading: () => const Padding(
@@ -302,7 +372,10 @@ class _HistoriquePaiementsSheet extends ConsumerWidget {
                 if (paiements.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text('Aucun paiement enregistre', style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text(
+                      'Aucun paiement enregistre',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   );
                 }
                 return ConstrainedBox(
@@ -315,9 +388,14 @@ class _HistoriquePaiementsSheet extends ConsumerWidget {
                       final PaiementModel p = paiements[index];
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.check_circle_outline, color: AppColors.success),
+                        leading: const Icon(
+                          Icons.check_circle_outline,
+                          color: AppColors.success,
+                        ),
                         title: Text(_formatMontant(p.montant)),
-                        subtitle: Text('${_formatDate(p.date)} — ${p.methode}${p.reference.isNotEmpty ? ' (${p.reference})' : ''}'),
+                        subtitle: Text(
+                          '${_formatDate(p.date)} — ${p.methode}${p.reference.isNotEmpty ? ' (${p.reference})' : ''}',
+                        ),
                       );
                     },
                   ),

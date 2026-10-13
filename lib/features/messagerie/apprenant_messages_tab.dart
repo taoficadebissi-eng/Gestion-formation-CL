@@ -17,14 +17,19 @@ class ApprenantMessagesTab extends ConsumerWidget {
     final centreAsync = ref.watch(centreActuelProvider);
 
     return centreAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('Erreur : $e'))),
       data: (centre) {
         if (userProfile == null || centre == null) {
-          return const Scaffold(body: Center(child: Text('Profil ou centre introuvable')));
+          return const Scaffold(
+            body: Center(child: Text('Profil ou centre introuvable')),
+          );
         }
         return FutureBuilder(
-          future: ref.read(messageAdminServiceProvider).trouverOuCreerConversation(
+          future: ref
+              .read(messageAdminServiceProvider)
+              .trouverOuCreerConversation(
                 centreId: centre.id,
                 apprenantId: userProfile.id,
                 adminId: centre.adminId,

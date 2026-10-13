@@ -50,7 +50,9 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
     if (texte.isEmpty) return;
     setState(() => _envoiEnCours = true);
     try {
-      await ref.read(messageAdminServiceProvider).envoyerMessage(
+      await ref
+          .read(messageAdminServiceProvider)
+          .envoyerMessage(
             MessageAdminModel(
               id: '',
               conversationId: widget.conversationId,
@@ -63,7 +65,11 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
       _controller.clear();
     } catch (e) {
       if (mounted) {
-        BlurredToast.show(context, 'Erreur lors de l\'envoi : $e', icon: Icons.error_outline);
+        BlurredToast.show(
+          context,
+          'Erreur lors de l\'envoi : $e',
+          icon: Icons.error_outline,
+        );
       }
     } finally {
       if (mounted) setState(() => _envoiEnCours = false);
@@ -72,7 +78,9 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(messagesConversationProvider(widget.conversationId));
+    final messagesAsync = ref.watch(
+      messagesConversationProvider(widget.conversationId),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -99,7 +107,9 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
                 }
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+                    _scrollController.jumpTo(
+                      _scrollController.position.maxScrollExtent,
+                    );
                   }
                 });
                 return ListView.builder(
@@ -110,27 +120,45 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
                     final message = messages[index];
                     final estMoi = message.auteurId == widget.userId;
                     return Align(
-                      alignment: estMoi ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: estMoi
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        ),
                         margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: estMoi ? AppColors.primary : AppColors.surface,
                           borderRadius: BorderRadius.circular(14),
-                          border: estMoi ? null : Border.all(color: AppColors.border),
+                          border: estMoi
+                              ? null
+                              : Border.all(color: AppColors.border),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               message.texte,
-                              style: TextStyle(color: estMoi ? Colors.white : AppColors.textPrimary),
+                              style: TextStyle(
+                                color: estMoi
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _formatHeure(message.dateEnvoi),
-                              style: TextStyle(fontSize: 10, color: estMoi ? Colors.white70 : AppColors.textSecondary),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: estMoi
+                                    ? Colors.white70
+                                    : AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -154,7 +182,10 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
                         hintText: 'Ecrire un message...',
                         filled: true,
                         fillColor: AppColors.surface,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: const BorderSide(color: AppColors.border),
@@ -165,9 +196,16 @@ class _AdminChatScreenState extends ConsumerState<AdminChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   _envoiEnCours
-                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2.5))
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
                       : IconButton(
-                          icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: AppColors.primary,
+                          ),
                           onPressed: _envoyer,
                         ),
                 ],

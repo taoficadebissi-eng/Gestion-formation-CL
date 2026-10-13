@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
@@ -166,7 +166,8 @@ class DetailFormationScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(20),
-                        image: (formation.imageUrl != null &&
+                        image:
+                            (formation.imageUrl != null &&
                                 formation.imageUrl!.isNotEmpty)
                             ? DecorationImage(
                                 image: NetworkImage(formation.imageUrl!),
@@ -309,11 +310,13 @@ class DetailFormationScreen extends ConsumerWidget {
                               .firstOrNull;
                           return GestureDetector(
                             onTap: prerequis != null
-                                ? () => context.go('/formations/${prerequis.id}')
+                                ? () =>
+                                      context.go('/formations/${prerequis.id}')
                                 : null,
                             child: _InfoCard(
                               titre: 'Formation prerequise',
-                              contenu: prerequis?.titre ?? 'Formation introuvable',
+                              contenu:
+                                  prerequis?.titre ?? 'Formation introuvable',
                               icone: Icons.link_rounded,
                             ),
                           );
@@ -325,7 +328,8 @@ class DetailFormationScreen extends ConsumerWidget {
                       formationId: formationId,
                       userId: userProfile.id,
                       peutAjouter: userProfile.role == UserRole.formateur,
-                      estBloque: monInscription?.statutPaiement ==
+                      estBloque:
+                          monInscription?.statutPaiement ==
                           StatutPaiement.bloque,
                     ),
                     if (peutModifier || dejaInscrit) ...[
@@ -335,7 +339,8 @@ class DetailFormationScreen extends ConsumerWidget {
                         icon: Icons.forum_rounded,
                         outlined: true,
                         color: AppColors.secondary,
-                        onPressed: (estApprenant &&
+                        onPressed:
+                            (estApprenant &&
                                 monInscription?.statutPaiement ==
                                     StatutPaiement.bloque)
                             ? null
@@ -474,9 +479,13 @@ class DetailFormationScreen extends ConsumerWidget {
                                       context: context,
                                       builder: (_) => AlertDialog(
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
-                                        title: const Text('Prerequis non valide'),
+                                        title: const Text(
+                                          'Prerequis non valide',
+                                        ),
                                         content: Text(
                                           'Cette formation recommande d\'avoir suivi '
                                           '"${prerequisFormation?.titre ?? 'une formation prerequise'}" '

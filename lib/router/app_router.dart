@@ -6,6 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
+import '../features/auth/super_admin_login_screen.dart';
+import '../features/cours_admin/screens/detail_cours_admin_screen.dart';
+import '../features/cours_admin/screens/formulaire_cours_screen.dart';
+import '../features/cours_admin/screens/liste_cours_admin_screen.dart';
 import '../features/auth/verification_email_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../features/auth/changer_mot_de_passe_screen.dart';
@@ -80,7 +84,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // à jour sur l'objet courant après `reload()`.
       final firebaseUser = FirebaseAuth.instance.currentUser;
       final emailNonVerifie =
-          authState.hasValue && firebaseUser != null && !firebaseUser.emailVerified;
+          authState.hasValue &&
+          firebaseUser != null &&
+          !firebaseUser.emailVerified;
       if (emailNonVerifie) {
         return loc == '/verification-email' ? null : '/verification-email';
       }
@@ -101,7 +107,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isPublicRoute =
           loc == '/login' ||
           loc == '/register' ||
-          loc == '/mot-de-passe-oublie';
+          loc == '/mot-de-passe-oublie' ||
+          loc == '/super-admin/connexion';
 
       final isLoggedIn = user != null;
       // '/' affiche LoginScreen : c'est une route d'authentification.
@@ -127,10 +134,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       // plus lieu d'être.
       if (loc == '/verification-email') return '/login';
 
+      // Espace super-admin : tout le sous-arbre /super-admin est protégé ;
+      // seule la page d'authentification est accessible sans compte.
+      final estEspaceSuperAdmin =
+          loc == '/super-admin' ||
+          (loc.startsWith('/super-admin/') && loc != '/super-admin/connexion');
       if (estSuperAdmin) {
-        return loc == '/super-admin' ? null : '/super-admin';
+        return estEspaceSuperAdmin ? null : '/super-admin';
       }
-      if (loc == '/super-admin') return '/login';
+      if (estEspaceSuperAdmin) return '/super-admin/connexion';
 
       if (isSplash && !isLoading) {
         if (!isLoggedIn) return '/';
@@ -191,10 +203,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/connexion',
         builder: (context, state) => const LoginScreen(),
@@ -207,10 +216,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
@@ -222,6 +228,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/super-admin',
         builder: (context, state) => const SuperAdminScreen(),
+      ),
+      GoRoute(
+        path: '/super-admin/connexion',
+        builder: (context, state) => const SuperAdminLoginScreen(),
+      ),
+      GoRoute(
+        path: '/super-admin/cours',
+        builder: (context, state) => const ListeCoursAdminScreen(),
+      ),
+      GoRoute(
+        path: '/super-admin/cours/nouveau',
+        builder: (context, state) => const FormulaireCoursScreen(),
+      ),
+      GoRoute(
+        path: '/super-admin/cours/:id',
+        builder: (context, state) =>
+            DetailCoursAdminScreen(coursId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/super-admin/cours/:id/modifier',
+        builder: (context, state) =>
+            FormulaireCoursScreen(coursId: state.pathParameters['id']),
       ),
       GoRoute(
         path: '/changer-mot-de-passe',
@@ -339,8 +367,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CalendarScreen(),
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(child: Text('Page introuvable: ${state.error}')),
-    ),
+    errorBuilder: (context, state) =>
+        Scaffold(body: Center(child: Text('Page introuvable: ${state.error}'))),
   );
 });

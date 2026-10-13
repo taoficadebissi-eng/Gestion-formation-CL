@@ -12,7 +12,8 @@ class ApprenantShellScreen extends ConsumerStatefulWidget {
   const ApprenantShellScreen({super.key});
 
   @override
-  ConsumerState<ApprenantShellScreen> createState() => _ApprenantShellScreenState();
+  ConsumerState<ApprenantShellScreen> createState() =>
+      _ApprenantShellScreenState();
 }
 
 class _ApprenantShellScreenState extends ConsumerState<ApprenantShellScreen> {
@@ -26,7 +27,8 @@ class _ApprenantShellScreenState extends ConsumerState<ApprenantShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesNonLus = ref.watch(apprenantMessagesNonLusProvider).value ?? false;
+    final messagesNonLus =
+        ref.watch(apprenantMessagesNonLusProvider).value ?? false;
 
     final items = [
       const AppBottomNavItem(

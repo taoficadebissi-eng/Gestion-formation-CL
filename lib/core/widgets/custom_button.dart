@@ -112,9 +112,7 @@ class _CustomButtonState extends State<CustomButton> {
                       ),
                     ]
                   : [],
-              border: _enabled
-                  ? null
-                  : Border.all(color: AppColors.border),
+              border: _enabled ? null : Border.all(color: AppColors.border),
             ),
             alignment: Alignment.center,
             child: Opacity(

@@ -140,7 +140,8 @@ class _ModifierFormationScreenState
         dateFin: _dateFin,
         centreId: widget.formation.centreId,
         prerequisId: _prerequisId,
-        fraisTotal: double.tryParse(
+        fraisTotal:
+            double.tryParse(
               _fraisTotalController.text.trim().replaceAll(',', '.'),
             ) ??
             0,
@@ -241,7 +242,9 @@ class _ModifierFormationScreenState
               const SizedBox(height: 16),
               TextField(
                 controller: _fraisTotalController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: _buildInputDecoration(
                   'Frais total (FCFA, optionnel)',
                   Icons.payments_outlined,

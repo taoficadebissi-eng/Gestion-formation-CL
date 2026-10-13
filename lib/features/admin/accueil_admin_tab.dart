@@ -63,7 +63,11 @@ class AccueilAdminTab extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.business_rounded, size: 14, color: Colors.white),
+                  const Icon(
+                    Icons.business_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(

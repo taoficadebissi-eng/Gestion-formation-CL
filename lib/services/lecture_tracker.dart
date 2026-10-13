@@ -10,10 +10,7 @@ class LectureTracker {
 
   static Future<void> marquerLu(String cle) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      '$_prefixe$cle',
-      DateTime.now().toIso8601String(),
-    );
+    await prefs.setString('$_prefixe$cle', DateTime.now().toIso8601String());
   }
 
   static Future<bool> estNonLu(String cle, DateTime? dernierMessageDate) async {

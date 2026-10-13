@@ -56,11 +56,18 @@ class AdminConversationsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline_rounded, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Aucune conversation pour le moment',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -75,8 +82,12 @@ class AdminConversationsScreen extends ConsumerWidget {
                 (uid) => uid != userProfile?.id,
                 orElse: () => '',
               );
-              final autreUser = utilisateurs.where((u) => u.id == autreUid).firstOrNull;
-              final nom = autreUser != null ? '${autreUser.prenom} ${autreUser.nom}' : 'Apprenant';
+              final autreUser = utilisateurs
+                  .where((u) => u.id == autreUid)
+                  .firstOrNull;
+              final nom = autreUser != null
+                  ? '${autreUser.prenom} ${autreUser.nom}'
+                  : 'Apprenant';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -90,13 +101,22 @@ class AdminConversationsScreen extends ConsumerWidget {
                     backgroundColor: AppColors.roleApprenant,
                     child: Icon(Icons.person_rounded, color: Colors.white),
                   ),
-                  title: Text(nom, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    nom,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Text(
                     conversation.dernierMessage ?? 'Aucun message',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: Text(_formatDate(conversation.dateMaj), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  trailing: Text(
+                    _formatDate(conversation.dateMaj),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(

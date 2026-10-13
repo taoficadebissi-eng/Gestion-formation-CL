@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/firebase/firestore_helpers.dart';
 import '../../providers/auth_provider.dart';
+import '../cours_admin/providers/cours_admin_provider.dart';
 import '../../widgets/blurred_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -124,6 +125,18 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
+                const _CarteVisiteurs(),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => context.go('/super-admin/cours'),
+                  icon: const Icon(Icons.school_outlined),
+                  label: const Text('Voir les cours publics'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade700,
+                    side: BorderSide(color: Colors.red.shade700),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: _isLoading ? null : _creerCode,
                   icon: const Icon(Icons.add),
@@ -223,6 +236,51 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Nombre total de visiteurs de la vitrine publique CoursLibre.
+class _CarteVisiteurs extends ConsumerWidget {
+  const _CarteVisiteurs();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final total = ref.watch(visiteursProvider);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.people_alt_outlined, color: Colors.red.shade700),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                total.when(
+                  data: (n) => '$n',
+                  loading: () => '...',
+                  error: (_, _) => '-',
+                ),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Text(
+                'visiteurs sur CoursLibre',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
           ),
         ],
       ),

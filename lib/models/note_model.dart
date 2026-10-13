@@ -2,6 +2,7 @@ class NoteModel {
   final String id;
   final String formationId;
   final String nomFichier;
+
   /// Lien https vers le document (hébergé hors de l'application).
   final String url;
   final String uploadePar;

@@ -514,9 +514,17 @@ service cloud.firestore {
     // ========================================
     // Lecture publique ; écriture des cours réservée au super-admin. Le
     // compteur est la seule écriture sans connexion, bornée à +1.
+    function coursValide(d) {
+      return d.titre is string && d.titre.size() > 0 && d.titre.size() <= 200
+        && d.lienCours is string && d.lienCours.matches('^https://.+')
+        && (d.lienImage == null
+            || (d.lienImage is string && d.lienImage.matches('^https://.+')));
+    }
+
     match /cours_gratuits/{coursId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow create, update: if isSuperAdmin() && coursValide(request.resource.data);
+      allow delete: if isSuperAdmin();
     }
 
     match /compteur/{docId} {

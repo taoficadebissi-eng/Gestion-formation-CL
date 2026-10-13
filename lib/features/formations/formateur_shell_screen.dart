@@ -12,7 +12,8 @@ class FormateurShellScreen extends ConsumerStatefulWidget {
   const FormateurShellScreen({super.key});
 
   @override
-  ConsumerState<FormateurShellScreen> createState() => _FormateurShellScreenState();
+  ConsumerState<FormateurShellScreen> createState() =>
+      _FormateurShellScreenState();
 }
 
 class _FormateurShellScreenState extends ConsumerState<FormateurShellScreen> {
@@ -26,10 +27,15 @@ class _FormateurShellScreenState extends ConsumerState<FormateurShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesNonLus = ref.watch(formateurMessagesNonLusProvider).value ?? false;
+    final messagesNonLus =
+        ref.watch(formateurMessagesNonLusProvider).value ?? false;
 
     final items = [
-      const AppBottomNavItem(icone: Icons.home_outlined, iconeSelectionne: Icons.home_rounded, label: 'Accueil'),
+      const AppBottomNavItem(
+        icone: Icons.home_outlined,
+        iconeSelectionne: Icons.home_rounded,
+        label: 'Accueil',
+      ),
       const AppBottomNavItem(
         icone: Icons.book_outlined,
         iconeSelectionne: Icons.book_rounded,

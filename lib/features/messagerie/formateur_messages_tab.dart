@@ -18,7 +18,9 @@ class FormateurMessagesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userProfile = ref.watch(userProfileProvider).value;
     final formations = ref.watch(formationsProvider).value ?? [];
-    final mesFormations = formations.where((f) => f.formateurId == userProfile?.id).toList();
+    final mesFormations = formations
+        .where((f) => f.formateurId == userProfile?.id)
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -49,11 +51,18 @@ class FormateurMessagesTab extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline_rounded, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Aucune formation, aucune discussion de groupe',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -65,10 +74,15 @@ class FormateurMessagesTab extends ConsumerWidget {
                 final formation = mesFormations[index];
                 return Consumer(
                   builder: (context, ref, _) {
-                    final inscriptions = ref.watch(inscriptionsFormationProvider(formation.id)).value ?? [];
+                    final inscriptions =
+                        ref
+                            .watch(inscriptionsFormationProvider(formation.id))
+                            .value ??
+                        [];
                     final nomParUid = <String, String>{
                       formation.formateurId: formation.formateurNom,
-                      for (final i in inscriptions) i.apprenantId: i.apprenantNom,
+                      for (final i in inscriptions)
+                        i.apprenantId: i.apprenantNom,
                     };
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -82,7 +96,10 @@ class FormateurMessagesTab extends ConsumerWidget {
                           backgroundColor: AppColors.primary,
                           child: Icon(Icons.forum_rounded, color: Colors.white),
                         ),
-                        title: Text(formation.titre, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(
+                          formation.titre,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: Text('${inscriptions.length} participant(s)'),
                         onTap: () {
                           if (userProfile == null) return;

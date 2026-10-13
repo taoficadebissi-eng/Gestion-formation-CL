@@ -5,6 +5,7 @@ class AppBottomNavItem {
   final IconData icone;
   final IconData iconeSelectionne;
   final String label;
+
   /// true pour afficher un point rouge sur l'icône (badge "non lu", Phase 6).
   final bool avecBadge;
 
@@ -34,11 +35,7 @@ class AppBottomNav extends StatelessWidget {
   Widget _iconeAvecBadge(IconData icone, Color? couleur, bool avecBadge) {
     final child = couleur != null ? Icon(icone, color: couleur) : Icon(icone);
     if (!avecBadge) return child;
-    return Badge(
-      backgroundColor: AppColors.error,
-      smallSize: 8,
-      child: child,
-    );
+    return Badge(backgroundColor: AppColors.error, smallSize: 8, child: child);
   }
 
   @override
@@ -52,7 +49,11 @@ class AppBottomNav extends StatelessWidget {
           .map(
             (item) => NavigationDestination(
               icon: _iconeAvecBadge(item.icone, null, item.avecBadge),
-              selectedIcon: _iconeAvecBadge(item.iconeSelectionne, AppColors.primary, item.avecBadge),
+              selectedIcon: _iconeAvecBadge(
+                item.iconeSelectionne,
+                AppColors.primary,
+                item.avecBadge,
+              ),
               label: item.label,
             ),
           )

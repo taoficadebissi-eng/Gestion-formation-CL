@@ -47,7 +47,10 @@ class PrerequisSelector extends StatelessWidget {
         ),
       ),
       items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('Aucun prerequis')),
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Aucun prerequis'),
+        ),
         ...formationsDisponibles.map(
           (f) => DropdownMenuItem<String?>(
             value: f.id,

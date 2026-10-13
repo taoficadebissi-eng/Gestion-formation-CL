@@ -64,7 +64,10 @@ class SkeletonListCard extends StatelessWidget {
               children: [
                 const SkeletonBox(height: 16),
                 const SizedBox(height: 8),
-                SkeletonBox(width: MediaQuery.of(context).size.width * 0.35, height: 12),
+                SkeletonBox(
+                  width: MediaQuery.of(context).size.width * 0.35,
+                  height: 12,
+                ),
                 const SizedBox(height: 10),
                 const SkeletonBox(
                   width: 90,

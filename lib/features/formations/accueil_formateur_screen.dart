@@ -56,7 +56,11 @@ class AccueilFormateurScreen extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.business_rounded, size: 14, color: Colors.white),
+                  const Icon(
+                    Icons.business_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
@@ -102,7 +106,9 @@ class AccueilFormateurScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Erreur : $e')),
         data: (toutesSessions) {
           final mesSessions =
-              toutesSessions.where((s) => mesFormationsIds.contains(s.formationId)).toList()
+              toutesSessions
+                  .where((s) => mesFormationsIds.contains(s.formationId))
+                  .toList()
                 ..sort((a, b) => a.date.compareTo(b.date));
 
           final now = DateTime.now();
@@ -115,7 +121,11 @@ class AccueilFormateurScreen extends ConsumerWidget {
               )
               .toList();
           final aVenir = mesSessions
-              .where((s) => s.date.isAfter(DateTime(now.year, now.month, now.day, 23, 59, 59)))
+              .where(
+                (s) => s.date.isAfter(
+                  DateTime(now.year, now.month, now.day, 23, 59, 59),
+                ),
+              )
               .toList();
 
           return SingleChildScrollView(
@@ -138,7 +148,11 @@ class AccueilFormateurScreen extends ConsumerWidget {
                   const _EtatVide(message: "Aucune session aujourd'hui")
                 else
                   ...aujourdhui.map(
-                    (s) => _SessionCard(session: s, formations: formations, misEnAvant: true),
+                    (s) => _SessionCard(
+                      session: s,
+                      formations: formations,
+                      misEnAvant: true,
+                    ),
                   ),
                 const SizedBox(height: 24),
                 _SectionTitre(titre: 'À venir', count: aVenir.length),
@@ -146,9 +160,15 @@ class AccueilFormateurScreen extends ConsumerWidget {
                 if (aVenir.isEmpty)
                   const _EtatVide(message: 'Aucune session à venir')
                 else
-                  ...aVenir.take(10).map(
-                    (s) => _SessionCard(session: s, formations: formations, misEnAvant: false),
-                  ),
+                  ...aVenir
+                      .take(10)
+                      .map(
+                        (s) => _SessionCard(
+                          session: s,
+                          formations: formations,
+                          misEnAvant: false,
+                        ),
+                      ),
               ],
             ),
           );
@@ -227,7 +247,9 @@ class _SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formation = formations.where((f) => f.id == session.formationId).firstOrNull;
+    final formation = formations
+        .where((f) => f.id == session.formationId)
+        .firstOrNull;
 
     return GestureDetector(
       onTap: () => context.go('/formations/${session.formationId}'),
@@ -235,7 +257,9 @@ class _SessionCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: AppTheme.softCard(radius: 16).copyWith(
-          border: misEnAvant ? Border.all(color: AppColors.primary, width: 1.5) : null,
+          border: misEnAvant
+              ? Border.all(color: AppColors.primary, width: 1.5)
+              : null,
         ),
         child: Row(
           children: [
@@ -255,18 +279,28 @@ class _SessionCard extends StatelessWidget {
                 children: [
                   Text(
                     formation?.titre ?? session.titre,
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${session.date.day}/${session.date.month}/${session.date.year} — ${session.heureDebut} à ${session.heureFin}'
                     '${session.salle.isNotEmpty ? ' — ${session.salle}' : ''}',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textSecondary),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),

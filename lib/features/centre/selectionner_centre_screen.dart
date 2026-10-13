@@ -28,7 +28,11 @@ class SelectionnerCentreScreen extends ConsumerWidget {
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.business_rounded, color: Colors.white, size: 30),
+                child: const Icon(
+                  Icons.business_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -47,8 +51,10 @@ class SelectionnerCentreScreen extends ConsumerWidget {
               const SizedBox(height: 40),
               Expanded(
                 child: centresAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => const Center(child: Text('Erreur de chargement')),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) =>
+                      const Center(child: Text('Erreur de chargement')),
                   data: (centres) {
                     if (centres.isEmpty) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -62,7 +68,8 @@ class SelectionnerCentreScreen extends ConsumerWidget {
                         final centre = centres[index];
                         return GestureDetector(
                           onTap: () {
-                            ref.read(centreActifProvider.notifier).state = centre;
+                            ref.read(centreActifProvider.notifier).state =
+                                centre;
                             context.go('/admin/dashboard');
                           },
                           child: Container(
@@ -79,15 +86,21 @@ class SelectionnerCentreScreen extends ConsumerWidget {
                                   width: 48,
                                   height: 48,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.1,
+                                    ),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Icon(Icons.business_rounded, color: AppColors.primary),
+                                  child: const Icon(
+                                    Icons.business_rounded,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         centre.nom,
@@ -108,8 +121,11 @@ class SelectionnerCentreScreen extends ConsumerWidget {
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.arrow_forward_ios_rounded,
-                                    color: AppColors.textSecondary, size: 16),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: AppColors.textSecondary,
+                                  size: 16,
+                                ),
                               ],
                             ),
                           ),

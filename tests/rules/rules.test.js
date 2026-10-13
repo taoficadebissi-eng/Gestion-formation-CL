@@ -266,12 +266,19 @@ describe('presences', () => {
 });
 
 describe('CoursLibre (meme projet)', () => {
-  it('cours: lecture publique, ecriture super-admin seulement', async () => {
+  it('cours: lecture publique, ecriture super-admin avec liens https', async () => {
+    const cours = (over = {}) => ({ titre: 'x', lienCours: 'https://coursera.org/x', lienImage: null, ...over });
     await assertSucceeds(getDocs(collection(db(ctx.anon()), 'cours_gratuits')));
-    await assertSucceeds(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c1'), { titre: 'x' }));
-    await assertFails(setDoc(doc(db(ctx.admin()), 'cours_gratuits/c2'), { titre: 'x' }));
-    await assertFails(setDoc(doc(db(ctx.supNonVerifie()), 'cours_gratuits/c3'), { titre: 'x' }));
-    await assertFails(setDoc(doc(db(ctx.anon()), 'cours_gratuits/c4'), { titre: 'x' }));
+    await assertSucceeds(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c1'), cours()));
+    await assertSucceeds(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c5'), cours({ lienImage: 'https://img.io/a.png' })));
+    await assertFails(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c6'), cours({ lienCours: 'javascript:alert(1)' })));
+    await assertFails(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c7'), cours({ lienImage: 'http://x.io/a.png' })));
+    await assertFails(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c8'), cours({ titre: '' })));
+    await assertFails(setDoc(doc(db(ctx.admin()), 'cours_gratuits/c2'), cours()));
+    await assertFails(setDoc(doc(db(ctx.supNonVerifie()), 'cours_gratuits/c3'), cours()));
+    await assertFails(setDoc(doc(db(ctx.anon()), 'cours_gratuits/c4'), cours()));
+    await assertSucceeds(deleteDoc(doc(db(ctx.sup()), 'cours_gratuits/c1')));
+    await assertFails(deleteDoc(doc(db(ctx.admin()), 'cours_gratuits/c5')));
   });
 
   it('compteur: +1 anonyme uniquement', async () => {

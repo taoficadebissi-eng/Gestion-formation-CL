@@ -275,19 +275,19 @@ class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
                                         color: AppColors.primary.withValues(
                                           alpha: 0.1,
                                         ),
-                                        borderRadius: BorderRadius.circular(
-                                          12,
-                                        ),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      child: (formation.imageUrl != null &&
+                                      child:
+                                          (formation.imageUrl != null &&
                                               formation.imageUrl!.isNotEmpty)
                                           ? Image.network(
                                               formation.imageUrl!,
                                               fit: BoxFit.cover,
-                                              errorBuilder: (_, _, _) => const Icon(
-                                                Icons.book_rounded,
-                                                color: AppColors.primary,
-                                              ),
+                                              errorBuilder: (_, _, _) =>
+                                                  const Icon(
+                                                    Icons.book_rounded,
+                                                    color: AppColors.primary,
+                                                  ),
                                             )
                                           : const Icon(
                                               Icons.book_rounded,
@@ -323,8 +323,7 @@ class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
                                               const Icon(
                                                 Icons.calendar_today_rounded,
                                                 size: 12,
-                                                color:
-                                                    AppColors.textSecondary,
+                                                color: AppColors.textSecondary,
                                               ),
                                               const SizedBox(width: 4),
                                               Text(
@@ -346,17 +345,14 @@ class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
                                                   color: AppColors.primary
                                                       .withValues(alpha: 0.1),
                                                   borderRadius:
-                                                      BorderRadius.circular(
-                                                        8,
-                                                      ),
+                                                      BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
                                                   formation.niveau,
                                                   style: const TextStyle(
                                                     color: AppColors.primary,
                                                     fontSize: 11,
-                                                    fontWeight:
-                                                        FontWeight.w600,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ),

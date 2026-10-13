@@ -120,8 +120,8 @@ class InscriptionService {
   /// Force/lève manuellement le statut "bloqué" (action admin).
   Future<void> togglerBlocage(String inscriptionId, bool bloquer) async {
     await _col.doc(inscriptionId).update({
-      'statut_paiement': (bloquer ? StatutPaiement.bloque : StatutPaiement.aJour)
-          .toJson(),
+      'statut_paiement':
+          (bloquer ? StatutPaiement.bloque : StatutPaiement.aJour).toJson(),
     });
   }
 }

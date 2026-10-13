@@ -31,7 +31,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> renvoyerVerificationEmail() =>
       _authService.envoyerVerificationEmail();
 
-
   Future<void> connexion(String email, String password) async {
     state = const AsyncValue.loading();
     try {

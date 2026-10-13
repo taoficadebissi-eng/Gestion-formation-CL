@@ -25,6 +25,7 @@ class NotesSection extends ConsumerStatefulWidget {
   final String formationId;
   final String userId;
   final bool peutAjouter;
+
   /// true si l'apprenant courant a un statut de paiement "bloque" pour
   /// cette formation : les RLS masquent déjà les notes, ce booléen sert
   /// uniquement à afficher un message clair plutôt que "aucun fichier"
@@ -139,7 +140,11 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
         webOnlyWindowName: '_blank',
       );
       if (!ok && mounted) {
-        BlurredToast.show(context, 'Impossible d\'ouvrir ce fichier', icon: Icons.error_outline);
+        BlurredToast.show(
+          context,
+          'Impossible d\'ouvrir ce fichier',
+          icon: Icons.error_outline,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -152,11 +157,19 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
     try {
       await ref.read(noteServiceProvider).supprimer(noteId);
       if (mounted) {
-        BlurredToast.show(context, 'Fichier supprime', icon: Icons.delete_outline);
+        BlurredToast.show(
+          context,
+          'Fichier supprime',
+          icon: Icons.delete_outline,
+        );
       }
     } catch (e) {
       if (mounted) {
-        BlurredToast.show(context, 'Erreur lors de la suppression : $e', icon: Icons.error_outline);
+        BlurredToast.show(
+          context,
+          'Erreur lors de la suppression : $e',
+          icon: Icons.error_outline,
+        );
       }
     }
   }
@@ -172,7 +185,11 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
           children: [
             const Text(
               'Notes de cours',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             const Spacer(),
             if (widget.peutAjouter)
@@ -183,7 +200,10 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
                       child: CircularProgressIndicator(strokeWidth: 2.5),
                     )
                   : IconButton(
-                      icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary),
+                      icon: const Icon(
+                        Icons.add_circle_rounded,
+                        color: AppColors.primary,
+                      ),
                       tooltip: 'Ajouter un document',
                       onPressed: _ajouterFichier,
                     ),
@@ -194,7 +214,10 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            decoration: AppTheme.softCard(radius: 16, color: AppColors.error.withValues(alpha: 0.08)),
+            decoration: AppTheme.softCard(
+              radius: 16,
+              color: AppColors.error.withValues(alpha: 0.08),
+            ),
             child: const Row(
               children: [
                 Icon(Icons.lock_outline, color: AppColors.error),
@@ -210,55 +233,73 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
             ),
           )
         else
-        notesAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (e, _) => Text('Erreur : $e', style: const TextStyle(color: AppColors.error)),
-          data: (notes) {
-            if (notes.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: AppTheme.softCard(radius: 16),
-                child: const Text(
-                  'Aucun document depose pour le moment',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              );
-            }
-            return Column(
-              children: notes.map((note) {
+          notesAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => Text(
+              'Erreur : $e',
+              style: const TextStyle(color: AppColors.error),
+            ),
+            data: (notes) {
+              if (notes.isEmpty) {
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: AppTheme.softCard(radius: 14),
-                  child: ListTile(
-                    leading: Icon(_iconePourFichier(note.nomFichier), color: AppColors.primary),
-                    title: Text(
-                      note.nomFichier,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                    ),
-                    subtitle: Text(
-                      'Ajoute le ${_formatDate(note.dateAjout)}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                    onTap: () => _ouvrirFichier(note.url),
-                    trailing: widget.peutAjouter
-                        ? IconButton(
-                            icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                            tooltip: 'Supprimer',
-                            onPressed: () => _supprimerFichier(note.id),
-                          )
-                        : const Icon(Icons.download_rounded, color: AppColors.textSecondary),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: AppTheme.softCard(radius: 16),
+                  child: const Text(
+                    'Aucun document depose pour le moment',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 );
-              }).toList(),
-            );
-          },
-        ),
+              }
+              return Column(
+                children: notes.map((note) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: AppTheme.softCard(radius: 14),
+                    child: ListTile(
+                      leading: Icon(
+                        _iconePourFichier(note.nomFichier),
+                        color: AppColors.primary,
+                      ),
+                      title: Text(
+                        note.nomFichier,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Ajoute le ${_formatDate(note.dateAjout)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      onTap: () => _ouvrirFichier(note.url),
+                      trailing: widget.peutAjouter
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: AppColors.error,
+                              ),
+                              tooltip: 'Supprimer',
+                              onPressed: () => _supprimerFichier(note.id),
+                            )
+                          : const Icon(
+                              Icons.download_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
       ],
     );
   }
