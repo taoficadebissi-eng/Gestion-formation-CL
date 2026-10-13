@@ -1,11 +1,11 @@
 {
-    "name": "gestion",
-    "short_name": "gestion",
+    "name": "Gestion Formation",
+    "short_name": "Gestion",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Plateforme de gestion de formations.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
