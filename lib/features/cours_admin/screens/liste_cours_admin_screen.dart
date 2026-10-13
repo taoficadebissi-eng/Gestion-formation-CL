@@ -70,7 +70,7 @@ class _ListeCoursAdminScreenState extends ConsumerState<ListeCoursAdminScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '${cours.length} cours - ${cours.where((c) => c.actif).length} visibles',
+                    '${cours.length} cours - ${cours.where((c) => c.actif && !c.estExpire).length} visibles',
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
@@ -164,7 +164,15 @@ class _CarteCours extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!cours.actif)
+              if (cours.estExpire)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Chip(
+                    label: Text('Expire'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                )
+              else if (!cours.actif)
                 const Padding(
                   padding: EdgeInsets.only(left: 8),
                   child: Chip(

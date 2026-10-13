@@ -274,6 +274,9 @@ describe('CoursLibre (meme projet)', () => {
     await assertFails(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c6'), cours({ lienCours: 'javascript:alert(1)' })));
     await assertFails(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c7'), cours({ lienImage: 'http://x.io/a.png' })));
     await assertFails(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c8'), cours({ titre: '' })));
+    await assertSucceeds(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c9'), cours({ dateFin: new Date('2030-01-01') })));
+    await assertSucceeds(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c10'), cours({ dateFin: null })));
+    await assertFails(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c11'), cours({ dateFin: 'demain' })));
     await assertFails(setDoc(doc(db(ctx.admin()), 'cours_gratuits/c2'), cours()));
     await assertFails(setDoc(doc(db(ctx.supNonVerifie()), 'cours_gratuits/c3'), cours()));
     await assertFails(setDoc(doc(db(ctx.anon()), 'cours_gratuits/c4'), cours()));

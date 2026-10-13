@@ -518,7 +518,8 @@ service cloud.firestore {
       return d.titre is string && d.titre.size() > 0 && d.titre.size() <= 200
         && d.lienCours is string && d.lienCours.matches('^https://.+')
         && (d.lienImage == null
-            || (d.lienImage is string && d.lienImage.matches('^https://.+')));
+            || (d.lienImage is string && d.lienImage.matches('^https://.+')))
+        && (!('dateFin' in d) || d.dateFin == null || d.dateFin is timestamp);
     }
 
     match /cours_gratuits/{coursId} {

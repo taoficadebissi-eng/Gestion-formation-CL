@@ -36,6 +36,7 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
   bool _enregistrement = false;
   bool _initialise = false;
   CoursGratuit? _existant;
+  DateTime? _dateFin;
 
   bool get _modification => widget.coursId != null;
 
@@ -74,6 +75,7 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
     _certificatDisponible = c.certificatDisponible;
     _certificatPayant = c.certificatPayant;
     _actif = c.actif;
+    _dateFin = c.dateFin;
   }
 
   String? _requis(String? v) =>
@@ -99,6 +101,21 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
         borderSide: const BorderSide(color: AppColors.border),
       ),
     );
+  }
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  Future<void> _choisirDateFin() async {
+    final aujourdhui = DateTime.now();
+    final choix = await showDatePicker(
+      context: context,
+      initialDate: _dateFin ?? aujourdhui.add(const Duration(days: 30)),
+      firstDate: DateTime(aujourdhui.year - 1),
+      lastDate: DateTime(aujourdhui.year + 10),
+      helpText: 'Dernier jour où le cours est proposé',
+    );
+    if (choix != null) setState(() => _dateFin = choix);
   }
 
   Widget _section(String titre) => Padding(
@@ -136,6 +153,18 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
             : _lienImage.text.trim(),
         actif: _actif,
         ordreAffichage: int.tryParse(_ordre.text.trim()),
+        dateFin: _dateFin == null
+            ? null
+            // Fin de journée : le cours reste visible tout le dernier jour.
+            : DateTime(
+                _dateFin!.year,
+                _dateFin!.month,
+                _dateFin!.day,
+                23,
+                59,
+                59,
+              ),
+        effacerDateFin: _dateFin == null,
       );
       final service = ref.read(coursAdminServiceProvider);
       if (_modification) {
@@ -298,6 +327,32 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
                       optionnel: true,
                     ),
                     keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 14),
+                  InkWell(
+                    onTap: _choisirDateFin,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InputDecorator(
+                      decoration:
+                          _decoration(
+                            'Date de fin (le cours disparait ensuite)',
+                            optionnel: true,
+                          ).copyWith(
+                            suffixIcon: _dateFin == null
+                                ? const Icon(Icons.calendar_month)
+                                : IconButton(
+                                    icon: const Icon(Icons.close),
+                                    tooltip: 'Retirer la date de fin',
+                                    onPressed: () =>
+                                        setState(() => _dateFin = null),
+                                  ),
+                          ),
+                      child: Text(
+                        _dateFin == null
+                            ? 'Aucune : le cours reste en ligne'
+                            : _formatDate(_dateFin!),
+                      ),
+                    ),
                   ),
                   _section('OPTIONS'),
                   Container(

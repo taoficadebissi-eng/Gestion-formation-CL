@@ -138,9 +138,22 @@ class DetailCoursAdminScreen extends ConsumerWidget {
                                   : 'Certificat gratuit',
                             ),
                           ),
+                        if (cours.dateFin != null)
+                          Chip(
+                            avatar: const Icon(Icons.event, size: 18),
+                            label: Text(
+                              cours.estExpire
+                                  ? 'Expire le ${_date(cours.dateFin!)}'
+                                  : 'Fin le ${_date(cours.dateFin!)}',
+                            ),
+                          ),
                         Chip(
-                          label: Text(cours.actif ? 'Visible' : 'Masque'),
-                          backgroundColor: cours.actif
+                          label: Text(
+                            cours.estExpire
+                                ? 'Masque (date de fin passee)'
+                                : (cours.actif ? 'Visible' : 'Masque'),
+                          ),
+                          backgroundColor: (cours.actif && !cours.estExpire)
                               ? AppColors.accentLight.withValues(alpha: 0.35)
                               : AppColors.surfaceAlt,
                         ),
@@ -201,6 +214,9 @@ class DetailCoursAdminScreen extends ConsumerWidget {
       ),
     );
   }
+
+  String _date(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   Widget _banniereParDefaut() {
     return Container(

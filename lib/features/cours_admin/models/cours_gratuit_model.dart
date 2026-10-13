@@ -40,6 +40,10 @@ class CoursGratuit {
   final bool actif;
   final int? ordreAffichage;
 
+  /// Dernier jour où le cours est proposé (facultatif). Passé ce jour, la
+  /// vitrine publique le masque automatiquement ; il reste dans l'espace admin.
+  final DateTime? dateFin;
+
   const CoursGratuit({
     required this.id,
     required this.titre,
@@ -57,7 +61,10 @@ class CoursGratuit {
     this.dateAjout,
     required this.actif,
     this.ordreAffichage,
+    this.dateFin,
   });
+
+  bool get estExpire => dateFin != null && dateFin!.isBefore(DateTime.now());
 
   factory CoursGratuit.empty() => CoursGratuit(
     id: '',
@@ -93,6 +100,7 @@ class CoursGratuit {
       dateAjout: (data['dateAjout'] as Timestamp?)?.toDate(),
       actif: (data['actif'] as bool?) ?? true,
       ordreAffichage: (data['ordreAffichage'] as num?)?.toInt(),
+      dateFin: (data['dateFin'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -112,6 +120,7 @@ class CoursGratuit {
       'lienCours': lienCours,
       'actif': actif,
       'ordreAffichage': ordreAffichage,
+      'dateFin': dateFin == null ? null : Timestamp.fromDate(dateFin!),
       if (isNew) 'dateAjout': FieldValue.serverTimestamp(),
     };
   }
@@ -133,6 +142,8 @@ class CoursGratuit {
     DateTime? dateAjout,
     bool? actif,
     int? ordreAffichage,
+    DateTime? dateFin,
+    bool effacerDateFin = false,
   }) {
     return CoursGratuit(
       id: id ?? this.id,
@@ -151,6 +162,7 @@ class CoursGratuit {
       dateAjout: dateAjout ?? this.dateAjout,
       actif: actif ?? this.actif,
       ordreAffichage: ordreAffichage ?? this.ordreAffichage,
+      dateFin: effacerDateFin ? null : (dateFin ?? this.dateFin),
     );
   }
 }
