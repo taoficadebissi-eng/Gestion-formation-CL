@@ -4,8 +4,10 @@ Plateforme multi-centres de gestion de formations (Flutter + Firebase) :
 centres, formations, sessions, inscriptions, présences, paiements, notes de
 cours (liens), chat de groupe et messagerie admin ↔ apprenant.
 
-> CoursLibre (vitrine de cours gratuits) est un **projet séparé** : dossier
-> frère `coursLibre/`, son propre dépôt et son propre projet Firebase.
+> CoursLibre (vitrine de cours gratuits) est un **projet séparé** (dossier frère
+> `coursLibre/`, dépôt `courslibre`) mais partage ce projet Firebase : les règles
+> Firestore des deux applications sont dans `firestore.rules` (ce dépôt) et
+> CoursLibre n'a que son site d'hébergement.
 
 ## Stack
 - Flutter (web, Android, Windows), Riverpod, GoRouter
