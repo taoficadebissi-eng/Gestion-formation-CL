@@ -1,297 +1,503 @@
 rules_version = '2';
 
+// Gestion Formation : plateforme multi-centres (admin / formateur / apprenant).
+//
+// Principes :
+//  - Chaque document porte un `centre_id` ; l'accès est toujours relatif au
+//    centre de l'utilisateur (profil dans `users/{uid}`) ou au centre dont
+//    l'admin est propriétaire (`centres/{id}.admin_id`).
+//  - Les requêtes de liste de l'application incluent toujours `centre_id`
+//    (ou l'identifiant de l'utilisateur) : c'est ce qui permet à Firestore
+//    de valider les règles sans lire chaque document.
+//  - Les ids de certains documents sont déterministes (inscription =
+//    apprenantId_formationId, présence = sessionId_apprenantId...) ce qui
+//    empêche les doublons et permet de vérifier une inscription sans requête.
+//  - Le super-admin est un compte Firebase Auth dont l'e-mail est vérifié.
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // ========================================
-    // FONCTIONS HELPER
+    // FONCTIONS UTILITAIRES
     // ========================================
-    
-    // V�rifie si l'utilisateur est authentifi�
-    function isAuthenticated() {
+
+    function signedIn() {
       return request.auth != null;
     }
-    
-    // R�cup�re les donn�es de l'utilisateur connect�
-    function getUserData() {
+
+    function isSuperAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'taoficadebissi@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function hasProfile() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function me() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
-    // V�rifie si l'utilisateur est un admin
+
     function isAdmin() {
-      return isAuthenticated() && getUserData().role == 'admin';
+      return hasProfile() && me().role == 'admin';
     }
-    
-    // V�rifie si l'utilisateur est un formateur
+
     function isFormateur() {
-      return isAuthenticated() && getUserData().role == 'formateur';
+      return hasProfile() && me().role == 'formateur';
     }
-    
-    // V�rifie si l'utilisateur est un apprenant
+
     function isApprenant() {
-      return isAuthenticated() && getUserData().role == 'apprenant';
+      return hasProfile() && me().role == 'apprenant';
     }
-    
-    // R�cup�re le centreId de l'utilisateur connect�
-    function getUserCentreId() {
-      return getUserData().centreId;
+
+    // L'utilisateur (non admin) appartient-il à ce centre ?
+    function inCentre(centreId) {
+      return hasProfile() && centreId is string && me().centre_id == centreId;
     }
-    
-    // V�rifie si l'admin poss�de le centre (adminId == uid de l'admin)
+
+    // L'utilisateur est-il l'admin propriétaire de ce centre ?
     function isOwnerOfCentre(centreId) {
-      return isAdmin() && 
-             get(/databases/$(database)/documents/centres/$(centreId)).data.adminId == request.auth.uid;
+      return isAdmin()
+        && centreId is string
+        && get(/databases/$(database)/documents/centres/$(centreId)).data.admin_id == request.auth.uid;
     }
-    
-    // V�rifie si l'utilisateur appartient au centre
-    function isUserInCentre(centreId) {
-      return isAuthenticated() && getUserCentreId() == centreId;
+
+    function formationData(formationId) {
+      return get(/databases/$(database)/documents/formations/$(formationId)).data;
     }
-    
+
+    function inscriptionData(inscriptionId) {
+      return get(/databases/$(database)/documents/inscriptions/$(inscriptionId)).data;
+    }
+
+    // Inscrit à la formation ET non bloqué pour impayé.
+    function inscritNonBloque(formationId) {
+      return exists(/databases/$(database)/documents/inscriptions/$(request.auth.uid + '_' + formationId))
+        && inscriptionData(request.auth.uid + '_' + formationId).statut_paiement != 'bloque';
+    }
+
+    function estFormateurDeFormation(formationId) {
+      return isFormateur() && formationData(formationId).formateur_id == request.auth.uid;
+    }
+
+    function estOwnerDeFormation(formationId) {
+      return isOwnerOfCentre(formationData(formationId).centre_id);
+    }
+
+    // Accès aux contenus d'une formation (notes, chat de groupe).
+    function accesFormation(formationId) {
+      return signedIn() && formationId is string && (
+        inscritNonBloque(formationId)
+        || estFormateurDeFormation(formationId)
+        || estOwnerDeFormation(formationId)
+      );
+    }
+
+    // Gestion des contenus d'une formation (formateur de la formation ou admin).
+    function gereFormation(formationId) {
+      return signedIn() && formationId is string && (
+        estFormateurDeFormation(formationId)
+        || estOwnerDeFormation(formationId)
+      );
+    }
+
     // ========================================
-    // COLLECTION : CENTRES
+    // CENTRES
     // ========================================
     match /centres/{centreId} {
-      // Lecture : admin propriétaire du centre (comparaison directe sur
-      // resource.data, PAS via isOwnerOfCentre/get() : un get() sur
-      // centres/$(centreId) depuis la règle de centres/{centreId} elle-même
-      // est un self-get qui rend toute requête "list" (ex: recherche du
-      // centre de l'admin par adminId) invalidable par Firestore -> deny
-      // systematique. resource.data est deja le document evalue, donc
-      // directement comparable au filtre de la requete.
-      allow read: if isAuthenticated() &&
-                     ((isAdmin() && resource.data.adminId == request.auth.uid) ||
-                      isUserInCentre(centreId));
+      allow read: if signedIn() && (
+        resource.data.admin_id == request.auth.uid
+        || inCentre(centreId)
+      );
 
-      // Création : seulement si l'admin crée son propre centre
-      allow create: if isAuthenticated() &&
-                       request.resource.data.adminId == request.auth.uid;
+      allow create: if isAdmin()
+        && request.resource.data.admin_id == request.auth.uid
+        && request.resource.data.keys().hasOnly(
+             ['nom', 'admin_id', 'ville', 'pays', 'date_creation', 'actif']);
 
-      // Modification : seulement le propriétaire du centre
-      allow update, delete: if isAdmin() && resource.data.adminId == request.auth.uid;
+      allow update: if isAdmin()
+        && resource.data.admin_id == request.auth.uid
+        && request.resource.data.admin_id == request.auth.uid
+        && request.resource.data.keys().hasOnly(
+             ['nom', 'admin_id', 'ville', 'pays', 'date_creation', 'actif']);
+
+      allow delete: if isAdmin() && resource.data.admin_id == request.auth.uid;
     }
-    
+
     // ========================================
-    // COLLECTION : USERS
+    // UTILISATEURS (profils)
     // ========================================
+
+    // Le code d'invitation doit être consommé par le même batch que
+    // l'écriture du profil admin (getAfter voit l'état après le batch).
+    function invitationConsommee(token) {
+      return token is string
+        && token.size() >= 8 && token.size() <= 64
+        && get(/databases/$(database)/documents/invitations/$(token)).data.utilise == false
+        && getAfter(/databases/$(database)/documents/invitations/$(token)).data.utilise == true
+        && getAfter(/databases/$(database)/documents/invitations/$(token)).data.admin_id == request.auth.uid;
+    }
+
     match /users/{userId} {
-      // Lecture : 
-      // - L'utilisateur lui-m�me peut lire son profil
-      // - Admin peut lire les users de SES centres
-      // - Formateur/Apprenant peuvent lire les users de LEUR centre
-      allow read: if isAuthenticated() && 
-                     (request.auth.uid == userId || 
-                      (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                      (isFormateur() && isUserInCentre(resource.data.centreId)) ||
-                      (isApprenant() && isUserInCentre(resource.data.centreId)));
-      
-      // Cr�ation :
-      // - Admin peut cr�er des users dans ses centres
-      // - L'utilisateur peut cr�er son propre compte (inscription)
-      allow create: if isAuthenticated() && 
-                       (request.auth.uid == userId || 
-                        (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)));
-      
-      // Modification :
-      // - L'utilisateur peut modifier son propre profil (sauf role et centreId)
-      // - Admin peut modifier les users de ses centres
-      allow update: if isAuthenticated() && 
-                       (
-                         // L'utilisateur modifie son propre profil
-                         (request.auth.uid == userId && 
-                          request.resource.data.role == resource.data.role &&
-                          request.resource.data.centreId == resource.data.centreId) ||
-                         // Admin modifie un user de son centre
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId))
-                       );
-      
-      // Suppression : seulement l'admin propri�taire du centre
-      allow delete: if isAdmin() && isOwnerOfCentre(resource.data.centreId);
+      allow read: if signedIn() && (
+        userId == request.auth.uid
+        || (hasProfile() && resource.data.centre_id != null && (
+              inCentre(resource.data.centre_id)
+              || isOwnerOfCentre(resource.data.centre_id)))
+      );
+
+      allow create: if signedIn() && (
+        // 1) Inscription d'un admin avec un code d'invitation valide.
+        (userId == request.auth.uid
+          && request.resource.data.keys().hasOnly(
+               ['id', 'nom', 'prenom', 'email', 'role', 'centre_id',
+                'is_first_login', 'invitation_token'])
+          && request.resource.data.id == userId
+          && request.resource.data.role == 'admin'
+          && request.resource.data.centre_id == null
+          && request.resource.data.is_first_login == false
+          && request.resource.data.email == request.auth.token.email
+          && invitationConsommee(request.resource.data.invitation_token))
+        ||
+        // 2) Création d'un formateur / apprenant par l'admin du centre.
+        (userId != request.auth.uid
+          && request.resource.data.keys().hasOnly(
+               ['id', 'nom', 'prenom', 'email', 'role', 'centre_id', 'is_first_login'])
+          && request.resource.data.id == userId
+          && request.resource.data.role in ['formateur', 'apprenant']
+          && request.resource.data.is_first_login == true
+          && isOwnerOfCentre(request.resource.data.centre_id))
+      );
+
+      allow update: if signedIn() && (
+        // Un utilisateur ne peut que lever son propre indicateur de premier login.
+        (userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_first_login'])
+          && request.resource.data.is_first_login == false)
+        ||
+        (resource.data.centre_id != null
+          && isOwnerOfCentre(resource.data.centre_id)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['nom', 'prenom', 'is_first_login']))
+      );
+
+      allow delete: if resource.data.centre_id != null
+        && isOwnerOfCentre(resource.data.centre_id);
     }
-    
+
     // ========================================
-    // COLLECTION : FORMATIONS
+    // FORMATIONS
     // ========================================
     match /formations/{formationId} {
-      // Lecture : utilisateurs du même centre, ou admin propriétaire du
-      // centre (l'admin a un centreId vide sur son propre profil, donc
-      // isUserInCentre() seul est toujours faux pour lui — voir README
-      // section 7 "Rôle-based centreId resolution")
-      allow read: if isAuthenticated() &&
-                     (isUserInCentre(resource.data.centreId) ||
-                      (isAdmin() && isOwnerOfCentre(resource.data.centreId)));
-      
-      // Cr�ation : admin ou formateur du centre
-      allow create: if isAuthenticated() && 
-                       (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
-                       (isFormateur() && isUserInCentre(request.resource.data.centreId));
-      
-      // Modification : admin propri�taire ou formateur qui a cr�� la formation
-      allow update: if isAuthenticated() && 
-                       (
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && resource.data.formateurId == request.auth.uid)
-                       );
-      
-      // Suppression : admin propri�taire ou formateur qui a cr�� la formation
-      allow delete: if isAuthenticated() && 
-                       (
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && resource.data.formateurId == request.auth.uid)
-                       );
+      allow read: if hasProfile() && (
+        inCentre(resource.data.centre_id)
+        || isOwnerOfCentre(resource.data.centre_id)
+      );
+
+      allow create: if hasProfile()
+        && request.resource.data.keys().hasOnly(
+             ['titre', 'description', 'formateur_id', 'formateur_nom',
+              'nombre_sessions', 'niveau', 'date_creation', 'date_debut',
+              'date_fin', 'centre_id', 'prerequis_id', 'frais_total', 'image_url'])
+        && (
+          isOwnerOfCentre(request.resource.data.centre_id)
+          || (isFormateur()
+              && inCentre(request.resource.data.centre_id)
+              && request.resource.data.formateur_id == request.auth.uid)
+        );
+
+      allow update: if hasProfile()
+        && request.resource.data.centre_id == resource.data.centre_id
+        && request.resource.data.keys().hasOnly(
+             ['titre', 'description', 'formateur_id', 'formateur_nom',
+              'nombre_sessions', 'niveau', 'date_creation', 'date_debut',
+              'date_fin', 'centre_id', 'prerequis_id', 'frais_total', 'image_url'])
+        && (
+          isOwnerOfCentre(resource.data.centre_id)
+          || (isFormateur() && resource.data.formateur_id == request.auth.uid)
+        );
+
+      allow delete: if hasProfile() && (
+        isOwnerOfCentre(resource.data.centre_id)
+        || (isFormateur() && resource.data.formateur_id == request.auth.uid)
+      );
     }
-    
+
     // ========================================
-    // COLLECTION : SESSIONS
+    // SESSIONS
     // ========================================
     match /sessions/{sessionId} {
-      // Lecture : utilisateurs du même centre, ou admin propriétaire du
-      // centre (même raison que pour formations : centreId vide sur le
-      // profil admin)
-      allow read: if isAuthenticated() &&
-                     (isUserInCentre(resource.data.centreId) ||
-                      (isAdmin() && isOwnerOfCentre(resource.data.centreId)));
-      
-      // Cr�ation : admin ou formateur du centre
-      allow create: if isAuthenticated() && 
-                       (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
-                       (isFormateur() && isUserInCentre(request.resource.data.centreId));
-      
-      // Modification : admin propri�taire ou formateur du centre
-      allow update: if isAuthenticated() && 
-                       (
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(resource.data.centreId))
-                       );
-      
-      // Suppression : admin propri�taire ou formateur du centre
-      allow delete: if isAuthenticated() && 
-                       (
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(resource.data.centreId))
-                       );
+      allow read: if hasProfile() && (
+        inCentre(resource.data.centre_id)
+        || isOwnerOfCentre(resource.data.centre_id)
+      );
+
+      allow create: if hasProfile()
+        && request.resource.data.keys().hasOnly(
+             ['formation_id', 'centre_id', 'titre', 'details', 'date',
+              'heure_debut', 'heure_fin', 'salle', 'statut'])
+        && (
+          isOwnerOfCentre(request.resource.data.centre_id)
+          || (isFormateur() && inCentre(request.resource.data.centre_id))
+        );
+
+      allow update: if hasProfile()
+        && request.resource.data.centre_id == resource.data.centre_id
+        && request.resource.data.keys().hasOnly(
+             ['formation_id', 'centre_id', 'titre', 'details', 'date',
+              'heure_debut', 'heure_fin', 'salle', 'statut'])
+        && (
+          isOwnerOfCentre(resource.data.centre_id)
+          || (isFormateur() && inCentre(resource.data.centre_id))
+        );
+
+      allow delete: if hasProfile() && (
+        isOwnerOfCentre(resource.data.centre_id)
+        || (isFormateur() && inCentre(resource.data.centre_id))
+      );
     }
-    
+
     // ========================================
-    // COLLECTION : INSCRIPTIONS
+    // INSCRIPTIONS
     // ========================================
+    // Les champs de paiement (statut_paiement, montant_paye, montant_restant)
+    // ne sont modifiables que par l'admin propriétaire du centre.
+
+    function lectureInscription(d) {
+      return d.apprenant_id == request.auth.uid
+        || isOwnerOfCentre(d.centre_id)
+        || (isFormateur() && inCentre(d.centre_id));
+    }
+
+    // Etat de paiement initial imposé aux non-admins : rien payé, tout dû.
+    function paiementInitialValide(d) {
+      return d.statut_paiement == 'a_jour'
+        && d.montant_paye == 0
+        && d.montant_restant == formationData(d.formation_id).frais_total;
+    }
+
     match /inscriptions/{inscriptionId} {
-      // Lecture :
-      // - L'apprenant peut lire ses propres inscriptions
-      // - Admin/Formateur du centre peuvent lire toutes les inscriptions du centre
-      allow read: if isAuthenticated() && 
-                     (
-                       (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
-                       (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                       (isFormateur() && isUserInCentre(resource.data.centreId))
-                     );
-      
-      // Cr�ation : apprenant peut s'inscrire lui-m�me, admin/formateur peuvent inscrire quelqu'un
-      allow create: if isAuthenticated() && 
-                       (
-                         (isApprenant() && request.resource.data.apprenantId == request.auth.uid && 
-                          isUserInCentre(request.resource.data.centreId)) ||
-                         (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(request.resource.data.centreId))
-                       );
-      
-      // Modification : apprenant peut modifier son inscription, admin/formateur du centre
-      allow update: if isAuthenticated() && 
-                       (
-                         (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(resource.data.centreId))
-                       );
-      
-      // Suppression : apprenant peut annuler son inscription, admin/formateur du centre
-      allow delete: if isAuthenticated() && 
-                       (
-                         (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(resource.data.centreId))
-                       );
+      // Lecture d'un document inexistant (test de double inscription) : seul
+      // l'id de l'utilisateur lui-même est autorisé.
+      allow get: if signedIn() && (
+        resource == null
+          ? inscriptionId.matches('^' + request.auth.uid + '_.*')
+          : lectureInscription(resource.data)
+      );
+
+      allow list: if signedIn() && lectureInscription(resource.data);
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['apprenant_id', 'apprenant_nom', 'formation_id', 'centre_id',
+              'date_inscription', 'statut', 'statut_paiement',
+              'montant_paye', 'montant_restant'])
+        && inscriptionId == request.resource.data.apprenant_id + '_' + request.resource.data.formation_id
+        && formationData(request.resource.data.formation_id).centre_id == request.resource.data.centre_id
+        && (
+          isOwnerOfCentre(request.resource.data.centre_id)
+          || (inCentre(request.resource.data.centre_id)
+              && paiementInitialValide(request.resource.data)
+              && (isFormateur()
+                  || (isApprenant() && request.resource.data.apprenant_id == request.auth.uid)))
+        );
+
+      allow update: if signedIn()
+        && request.resource.data.centre_id == resource.data.centre_id
+        && request.resource.data.apprenant_id == resource.data.apprenant_id
+        && request.resource.data.formation_id == resource.data.formation_id
+        && (
+          isOwnerOfCentre(resource.data.centre_id)
+          || ((resource.data.apprenant_id == request.auth.uid
+                || (isFormateur() && inCentre(resource.data.centre_id)))
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statut']))
+        );
+
+      // Un apprenant ne peut annuler que s'il n'a rien payé et n'est ni en
+      // retard ni bloqué (sinon il effacerait sa dette).
+      allow delete: if signedIn() && (
+        isOwnerOfCentre(resource.data.centre_id)
+        || (isFormateur() && inCentre(resource.data.centre_id))
+        || (resource.data.apprenant_id == request.auth.uid
+            && resource.data.montant_paye == 0
+            && resource.data.statut_paiement == 'a_jour')
+      );
     }
-    
+
     // ========================================
-    // COLLECTION : PRESENCES
+    // PAIEMENTS
+    // ========================================
+    // Une ligne de paiement ne peut être créée que par l'admin propriétaire,
+    // dans le même batch que la mise à jour de l'inscription : le total payé
+    // doit augmenter exactement du montant saisi. Aucune modification ensuite.
+    match /paiements/{paiementId} {
+      allow read: if signedIn() && lectureInscription(
+        inscriptionData(resource.data.inscription_id)
+      );
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['inscription_id', 'montant', 'date', 'methode', 'reference'])
+        && request.resource.data.montant is number
+        && request.resource.data.montant > 0
+        && isOwnerOfCentre(inscriptionData(request.resource.data.inscription_id).centre_id)
+        && getAfter(/databases/$(database)/documents/inscriptions/$(request.resource.data.inscription_id)).data.montant_paye
+             == inscriptionData(request.resource.data.inscription_id).montant_paye
+                + request.resource.data.montant;
+
+      allow update, delete: if false;
+    }
+
+    // ========================================
+    // PRESENCES
     // ========================================
     match /presences/{presenceId} {
-      // Lecture :
-      // - L'apprenant peut lire ses propres pr�sences
-      // - Admin/Formateur du centre peuvent lire toutes les pr�sences du centre
-      allow read: if isAuthenticated() && 
-                     (
-                       (isApprenant() && resource.data.apprenantId == request.auth.uid) ||
-                       (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                       (isFormateur() && isUserInCentre(resource.data.centreId))
-                     );
-      
-      // Creation : admin ou formateur du centre (pour marquer une premiere presence)
-      // NOTE : sur une creation, "resource" est null (le document n'existe pas
-      // encore) - il faut donc lire le centreId depuis "request.resource", pas
-      // depuis "resource". C'etait le bug qui rendait le marquage de presence
-      // impossible : la regle combinee create+update utilisait resource.data
-      // pour les deux cas, donc toute premiere creation de presence pour une
-      // session/apprenant echouait silencieusement (permission-denied).
-      allow create: if isAuthenticated() &&
-                       (
-                         (isAdmin() && isOwnerOfCentre(request.resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(request.resource.data.centreId))
-                       );
+      allow read: if signedIn() && (
+        resource.data.apprenant_id == request.auth.uid
+        || isOwnerOfCentre(resource.data.centre_id)
+        || (isFormateur() && inCentre(resource.data.centre_id))
+      );
 
-      // Modification : admin ou formateur du centre (pour corriger une presence existante)
-      allow update: if isAuthenticated() &&
-                       (
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(resource.data.centreId))
-                       );
-      
-      // Suppression : admin ou formateur du centre
-      allow delete: if isAuthenticated() && 
-                       (
-                         (isAdmin() && isOwnerOfCentre(resource.data.centreId)) ||
-                         (isFormateur() && isUserInCentre(resource.data.centreId))
-                       );
-    }
-    
-    // ========================================
-    // COLLECTION : INVITATIONS
-    // ========================================
-    match /invitations/{invitationId} {
-      // Lecture : admin seulement
-      allow read: if isAdmin();
-      
-      // Cr�ation : admin seulement
-      allow create: if isAdmin() && request.resource.data.adminId == request.auth.uid;
-      
-      // Modification : admin propri�taire de l'invitation
-      allow update: if isAdmin() && resource.data.adminId == request.auth.uid;
-      
-      // Suppression : admin propri�taire de l'invitation
-      allow delete: if isAdmin() && resource.data.adminId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['session_id', 'formation_id', 'centre_id', 'apprenant_id',
+              'apprenant_nom', 'present', 'date'])
+        && presenceId == request.resource.data.session_id + '_' + request.resource.data.apprenant_id
+        && (
+          isOwnerOfCentre(request.resource.data.centre_id)
+          || (isFormateur() && inCentre(request.resource.data.centre_id))
+        );
+
+      allow update: if signedIn()
+        && request.resource.data.centre_id == resource.data.centre_id
+        && request.resource.data.apprenant_id == resource.data.apprenant_id
+        && request.resource.data.session_id == resource.data.session_id
+        && (
+          isOwnerOfCentre(resource.data.centre_id)
+          || (isFormateur() && inCentre(resource.data.centre_id))
+        );
+
+      allow delete: if signedIn() && (
+        isOwnerOfCentre(resource.data.centre_id)
+        || (isFormateur() && inCentre(resource.data.centre_id))
+      );
     }
 
     // ========================================
-    // COLLECTION : COMPTEUR (visiteurs CoursLibre)
+    // NOTES DE COURS (liens vers des documents)
     // ========================================
-    // Compteur custom Firestore, incrémenté sans authentification depuis la
-    // page publique CoursLibre (1 écriture/appareil/jour côté client via
-    // shared_preferences). Écriture publique volontairement limitée à un
-    // strict incrément de 1 sur le seul champ "total", pour rester
-    // exploitable sans Cloud Functions (plan Spark) sans ouvrir la porte à
-    // une falsification arbitraire du compteur.
-    match /compteur/{docId} {
-      allow read: if true;
+    match /notes/{noteId} {
+      allow read: if accesFormation(resource.data.formation_id);
 
-      allow create: if docId == 'visiteurs' &&
-                       request.resource.data.total == 1;
+      allow create: if gereFormation(request.resource.data.formation_id)
+        && request.resource.data.keys().hasOnly(
+             ['formation_id', 'nom_fichier', 'url', 'uploade_par', 'date_ajout'])
+        && request.resource.data.uploade_par == request.auth.uid
+        && request.resource.data.url is string
+        && request.resource.data.url.matches('^https://.+')
+        && request.resource.data.nom_fichier is string
+        && request.resource.data.nom_fichier.size() > 0
+        && request.resource.data.nom_fichier.size() <= 200;
 
-      allow update: if docId == 'visiteurs' &&
-                       request.resource.data.total == resource.data.total + 1 &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total']);
+      allow update: if false;
+      allow delete: if gereFormation(resource.data.formation_id);
+    }
+
+    // ========================================
+    // CHAT DE GROUPE PAR FORMATION
+    // ========================================
+    match /messages/{messageId} {
+      allow read: if accesFormation(resource.data.formation_id);
+
+      allow create: if accesFormation(request.resource.data.formation_id)
+        && request.resource.data.keys().hasOnly(
+             ['formation_id', 'auteur_id', 'texte', 'date_envoi'])
+        && request.resource.data.auteur_id == request.auth.uid
+        && request.resource.data.texte is string
+        && request.resource.data.texte.size() > 0
+        && request.resource.data.texte.size() <= 2000;
+
+      allow update, delete: if false;
+    }
+
+    // ========================================
+    // MESSAGERIE ADMIN <-> APPRENANT
+    // ========================================
+    match /messages_admin_conversations/{conversationId} {
+      allow get: if signedIn() && (
+        resource == null || request.auth.uid in resource.data.participants
+      );
+      allow list: if signedIn() && request.auth.uid in resource.data.participants;
+
+      // participants = [apprenantId, adminId] ; id = centreId_apprenantId_adminId
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['centre_id', 'participants', 'dernier_message', 'date_maj'])
+        && request.resource.data.participants.size() == 2
+        && request.auth.uid in request.resource.data.participants
+        && conversationId == request.resource.data.centre_id + '_'
+             + request.resource.data.participants[0] + '_'
+             + request.resource.data.participants[1]
+        && get(/databases/$(database)/documents/centres/$(request.resource.data.centre_id)).data.admin_id
+             == request.resource.data.participants[1]
+        && get(/databases/$(database)/documents/users/$(request.resource.data.participants[0])).data.centre_id
+             == request.resource.data.centre_id;
+
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['dernier_message', 'date_maj']);
 
       allow delete: if false;
     }
 
+    match /messages_admin/{messageId} {
+      allow read: if signedIn() && request.auth.uid in get(
+        /databases/$(database)/documents/messages_admin_conversations/$(resource.data.conversation_id)
+      ).data.participants;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['conversation_id', 'auteur_id', 'texte', 'date_envoi'])
+        && request.resource.data.auteur_id == request.auth.uid
+        && request.resource.data.texte is string
+        && request.resource.data.texte.size() > 0
+        && request.resource.data.texte.size() <= 2000
+        && request.auth.uid in get(
+             /databases/$(database)/documents/messages_admin_conversations/$(request.resource.data.conversation_id)
+           ).data.participants;
+
+      allow update, delete: if false;
+    }
+
+    // ========================================
+    // INVITATIONS (création de comptes admin)
+    // ========================================
+    // L'id du document est le code lui-même. Lire un code précis est permis
+    // à tout utilisateur connecté qui le connaît ; lister tous les codes est
+    // réservé au super-admin. Un code ne peut être consommé qu'une fois, par
+    // l'utilisateur qui s'inscrit (voir aussi la règle de création de profil).
+    match /invitations/{token} {
+      allow get: if signedIn();
+      allow list: if isSuperAdmin();
+
+      allow create: if isSuperAdmin()
+        && request.resource.data.keys().hasOnly(
+             ['token', 'utilise', 'admin_id', 'date_creation'])
+        && request.resource.data.token == token
+        && request.resource.data.utilise == false;
+
+      allow update: if isSuperAdmin() || (
+        signedIn()
+        && resource.data.utilise == false
+        && request.resource.data.utilise == true
+        && request.resource.data.admin_id == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['utilise', 'admin_id'])
+      );
+
+      allow delete: if isSuperAdmin();
+    }
   }
 }

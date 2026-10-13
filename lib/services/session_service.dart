@@ -1,50 +1,44 @@
-import '../core/supabase/supabase_config.dart';
+import '../core/firebase/firestore_helpers.dart';
 import '../models/session_model.dart';
 
 class SessionService {
-  final _db = SupabaseConfig.client;
+  final _col = firestore.collection('sessions');
 
-  // Le stream realtime n'accepte qu'un seul .eq() côté serveur : on filtre
-  // sur centreId puis on affine côté client (voir inscription_service.dart).
+  List<SessionModel> _trier(List<Map<String, dynamic>> rows) {
+    final sessions = rows.map(SessionModel.fromJson).toList();
+    sessions.sort((a, b) => a.date.compareTo(b.date));
+    return sessions;
+  }
+
+  // centre_id est toujours inclus dans la requête : c'est ce qui permet aux
+  // règles Firestore de valider l'accès sans lire chaque document.
   Stream<List<SessionModel>> ecouterSessions(
     String formationId,
     String centreId,
   ) {
-    return _db
-        .from('sessions')
-        .stream(primaryKey: ['id'])
-        .eq('centre_id', centreId)
-        .map((rows) {
-          final sessions = rows
-              .where((row) => row['formation_id'] == formationId)
-              .map(SessionModel.fromJson)
-              .toList();
-          sessions.sort((a, b) => a.date.compareTo(b.date));
-          return sessions;
-        });
+    return _col
+        .where('centre_id', isEqualTo: centreId)
+        .where('formation_id', isEqualTo: formationId)
+        .snapshots()
+        .map((s) => _trier(s.toJsonListe()));
   }
 
   Stream<List<SessionModel>> ecouterSessionsCentre(String centreId) {
-    return _db
-        .from('sessions')
-        .stream(primaryKey: ['id'])
-        .eq('centre_id', centreId)
-        .map((rows) {
-          final sessions = rows.map(SessionModel.fromJson).toList();
-          sessions.sort((a, b) => a.date.compareTo(b.date));
-          return sessions;
-        });
+    return _col
+        .where('centre_id', isEqualTo: centreId)
+        .snapshots()
+        .map((s) => _trier(s.toJsonListe()));
   }
 
   Future<void> ajouterSession(SessionModel session) async {
-    await _db.from('sessions').insert(session.toJson());
+    await _col.add(session.toJson());
   }
 
   Future<void> modifierSession(SessionModel session) async {
-    await _db.from('sessions').update(session.toJson()).eq('id', session.id);
+    await _col.doc(session.id).update(session.toJson());
   }
 
   Future<void> supprimerSession(String id) async {
-    await _db.from('sessions').delete().eq('id', id);
+    await _col.doc(id).delete();
   }
 }

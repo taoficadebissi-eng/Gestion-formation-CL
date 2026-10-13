@@ -18,8 +18,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   String? _erreur;
   bool _obscurePassword = true;
-  int _tapCount = 0;
-  DateTime? _lastTapTime;
 
   // Style commun pour les TextField (Rectangle arrondi)
   InputDecoration _buildInputDecoration(
@@ -55,21 +53,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  void _onLogoTap() {
-    final now = DateTime.now();
-    if (_lastTapTime != null &&
-        now.difference(_lastTapTime!) > const Duration(seconds: 2)) {
-      _tapCount = 0;
-    }
-    _lastTapTime = now;
-    _tapCount++;
-
-    if (_tapCount >= 10) {
-      _tapCount = 0;
-      context.go('/super-admin');
-    }
   }
 
   bool _emailValide(String email) {
@@ -117,10 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         backgroundColor:
             Colors.transparent, // Transparent pour laisser voir le dégradé
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/'), // Retour vers l'accueil public
-        ),
+        automaticallyImplyLeading: false,
       ),
       extendBodyBehindAppBar: true, // Permet au contenu de passer sous l'AppBar
       // Fond de secours si le gradient met du temps à charger
@@ -146,13 +126,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                GestureDetector(
-                  onTap: _onLogoTap,
-                  child: const Icon(
-                    Icons.school_rounded,
-                    size: 80,
-                    color: Colors.white, // Logo en blanc pour le contraste
-                  ),
+                const Icon(
+                  Icons.school_rounded,
+                  size: 80,
+                  color: Colors.white, // Logo en blanc pour le contraste
                 ),
                 const SizedBox(height: 16),
                 const Text(

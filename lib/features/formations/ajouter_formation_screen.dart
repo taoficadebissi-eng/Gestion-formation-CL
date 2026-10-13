@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +29,7 @@ class _AjouterFormationScreenState
   DateTime? _dateDebut;
   DateTime? _dateFin;
   String? _prerequisId;
-  ({Uint8List bytes, String nomFichier})? _imageChoisie;
+  String? _imageUrl;
   String? _erreur;
 
   final List<String> _niveaux = ['Debutant', 'Intermediaire', 'Avance'];
@@ -159,38 +158,14 @@ class _AjouterFormationScreenState
         dateFin: _dateFin!,
         centreId: centreId,
         prerequisId: _prerequisId,
+        imageUrl: _imageUrl,
         fraisTotal: double.tryParse(
               _fraisTotalController.text.trim().replaceAll(',', '.'),
             ) ??
             0,
       );
 
-      final creee =
-          await ref.read(formationNotifierProvider.notifier).ajouter(formation);
-
-      if (_imageChoisie != null) {
-        // L'image a besoin de l'id de la formation (chemin de stockage) :
-        // upload seulement possible une fois la formation créée. Un échec
-        // ici n'annule pas la création, déjà réussie — juste un avertissement.
-        try {
-          final url = await ref.read(formationServiceProvider).uploaderImage(
-                formationId: creee.id,
-                nomFichier: _imageChoisie!.nomFichier,
-                bytes: _imageChoisie!.bytes,
-              );
-          await ref
-              .read(formationNotifierProvider.notifier)
-              .modifier(creee.copyWith(imageUrl: url));
-        } catch (e) {
-          if (mounted) {
-            BlurredToast.show(
-              context,
-              'Formation creee, mais l\'image n\'a pas pu etre enregistree : $e',
-              icon: Icons.error_outline,
-            );
-          }
-        }
-      }
+      await ref.read(formationNotifierProvider.notifier).ajouter(formation);
 
       if (mounted) {
         BlurredToast.show(
@@ -241,7 +216,7 @@ class _AjouterFormationScreenState
                   ),
                 ),
               FormationImagePicker(
-                onImageSelectionnee: (image) => setState(() => _imageChoisie = image),
+                onUrlChangee: (url) => _imageUrl = url,
               ),
               const SizedBox(height: 16),
               TextField(

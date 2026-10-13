@@ -1,42 +1,29 @@
-import '../core/supabase/supabase_config.dart';
+import '../core/firebase/firestore_helpers.dart';
 import '../models/presence_model.dart';
 
 class PresenceService {
-  final _db = SupabaseConfig.client;
+  final _col = firestore.collection('presences');
 
-  // Le stream realtime n'accepte qu'un seul .eq() côté serveur : on filtre
-  // sur centreId puis on affine côté client (voir inscription_service.dart).
+  /// Une présence par (session, apprenant) : l'id déterministe évite les
+  /// doublons sans requête préalable.
+  static String idPresence(String sessionId, String apprenantId) =>
+      '${sessionId}_$apprenantId';
+
   Stream<List<PresenceModel>> ecouterPresences(
     String sessionId,
     String centreId,
   ) {
-    return _db
-        .from('presences')
-        .stream(primaryKey: ['id'])
-        .eq('centre_id', centreId)
-        .map(
-          (rows) => rows
-              .where((row) => row['session_id'] == sessionId)
-              .map(PresenceModel.fromJson)
-              .toList(),
-        );
+    return _col
+        .where('centre_id', isEqualTo: centreId)
+        .where('session_id', isEqualTo: sessionId)
+        .snapshots()
+        .map((s) => s.toJsonListe().map(PresenceModel.fromJson).toList());
   }
 
   Future<void> enregistrerPresence(PresenceModel presence) async {
-    final existing = await _db
-        .from('presences')
-        .select('id')
-        .eq('session_id', presence.sessionId)
-        .eq('apprenant_id', presence.apprenantId)
-        .eq('centre_id', presence.centreId);
-    if (existing.isNotEmpty) {
-      await _db
-          .from('presences')
-          .update({'present': presence.present})
-          .eq('id', existing.first['id']);
-    } else {
-      await _db.from('presences').insert(presence.toJson());
-    }
+    await _col
+        .doc(idPresence(presence.sessionId, presence.apprenantId))
+        .set(presence.toJson());
   }
 
   Stream<List<PresenceModel>> ecouterPresencesApprenant(
@@ -44,19 +31,11 @@ class PresenceService {
     String formationId,
     String centreId,
   ) {
-    return _db
-        .from('presences')
-        .stream(primaryKey: ['id'])
-        .eq('centre_id', centreId)
-        .map(
-          (rows) => rows
-              .where(
-                (row) =>
-                    row['apprenant_id'] == apprenantId &&
-                    row['formation_id'] == formationId,
-              )
-              .map(PresenceModel.fromJson)
-              .toList(),
-        );
+    return _col
+        .where('centre_id', isEqualTo: centreId)
+        .where('apprenant_id', isEqualTo: apprenantId)
+        .where('formation_id', isEqualTo: formationId)
+        .snapshots()
+        .map((s) => s.toJsonListe().map(PresenceModel.fromJson).toList());
   }
 }

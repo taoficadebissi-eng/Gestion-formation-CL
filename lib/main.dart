@@ -2,19 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'core/supabase/supabase_config.dart';
 import 'router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase reste utilisé pour la vitrine publique CoursLibre
-  // (cours_gratuits, compteur de visiteurs), hors périmètre de la refonte.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Supabase remplace Firebase Auth + Firestore pour Gestion Formation
-  // (users, centres, formations, sessions, inscriptions, presences,
-  // invitations) — voir NOTES_AUDIT.md.
-  await SupabaseConfig.init();
   runApp(const ProviderScope(child: MyApp()));
 }
 

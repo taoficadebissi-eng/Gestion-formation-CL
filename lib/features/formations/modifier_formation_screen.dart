@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,7 +28,7 @@ class _ModifierFormationScreenState
   late DateTime _dateDebut;
   late DateTime _dateFin;
   late String? _prerequisId;
-  ({Uint8List bytes, String nomFichier})? _imageChoisie;
+  String? _imageUrl;
   String? _erreur;
 
   final List<String> _niveaux = ['Debutant', 'Intermediaire', 'Avance'];
@@ -75,6 +74,7 @@ class _ModifierFormationScreenState
     _dateDebut = widget.formation.dateDebut;
     _dateFin = widget.formation.dateFin;
     _prerequisId = widget.formation.prerequisId;
+    _imageUrl = widget.formation.imageUrl;
   }
 
   @override
@@ -144,20 +144,10 @@ class _ModifierFormationScreenState
               _fraisTotalController.text.trim().replaceAll(',', '.'),
             ) ??
             0,
-        imageUrl: widget.formation.imageUrl,
+        imageUrl: _imageUrl,
       );
 
-      var formationFinale = formation;
-      if (_imageChoisie != null) {
-        final url = await ref.read(formationServiceProvider).uploaderImage(
-              formationId: widget.formation.id,
-              nomFichier: _imageChoisie!.nomFichier,
-              bytes: _imageChoisie!.bytes,
-            );
-        formationFinale = formation.copyWith(imageUrl: url);
-      }
-
-      await ref.read(formationNotifierProvider.notifier).modifier(formationFinale);
+      await ref.read(formationNotifierProvider.notifier).modifier(formation);
       if (mounted) {
         BlurredToast.show(
           context,
@@ -211,7 +201,7 @@ class _ModifierFormationScreenState
 
               FormationImagePicker(
                 imageUrlExistante: widget.formation.imageUrl,
-                onImageSelectionnee: (image) => setState(() => _imageChoisie = image),
+                onUrlChangee: (url) => _imageUrl = url,
               ),
               const SizedBox(height: 16),
 

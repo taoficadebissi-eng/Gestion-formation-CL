@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/user_service.dart';
 import 'auth_provider.dart';
@@ -10,9 +10,9 @@ final userServiceProvider = Provider<UserService>((ref) => UserService());
 final userProfileProvider = StreamProvider<UserModel?>((ref) {
   final authState = ref.watch(authStateProvider);
   return authState.when(
-    data: (Session? session) {
-      if (session == null) return Stream.value(null);
-      return ref.watch(userServiceProvider).ecouterUtilisateur(session.user.id);
+    data: (User? utilisateur) {
+      if (utilisateur == null) return Stream.value(null);
+      return ref.watch(userServiceProvider).ecouterUtilisateur(utilisateur.uid);
     },
     loading: () => Stream.value(null),
     error: (_, _) => Stream.value(null),

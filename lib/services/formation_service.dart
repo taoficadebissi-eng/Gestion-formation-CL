@@ -1,52 +1,27 @@
-import 'dart:typed_data';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../core/supabase/supabase_config.dart';
+import '../core/firebase/firestore_helpers.dart';
 import '../models/formation_model.dart';
 
 class FormationService {
-  final _db = SupabaseConfig.client;
+  final _col = firestore.collection('formations');
 
   Stream<List<Formation>> ecouterFormations(String centreId) {
-    return _db
-        .from('formations')
-        .stream(primaryKey: ['id'])
-        .eq('centre_id', centreId)
-        .order('date_creation', ascending: false)
-        .map((rows) => rows.map(Formation.fromJson).toList());
+    return _col.where('centre_id', isEqualTo: centreId).snapshots().map((s) {
+      final liste = s.toJsonListe().map(Formation.fromJson).toList();
+      liste.sort((a, b) => b.dateCreation.compareTo(a.dateCreation));
+      return liste;
+    });
   }
 
   Future<Formation> ajouterFormation(Formation formation) async {
-    final row = await _db
-        .from('formations')
-        .insert(formation.toJson())
-        .select()
-        .single();
-    return Formation.fromJson(row);
+    final ref = await _col.add(formation.toJson());
+    return formation.copyWith(id: ref.id);
   }
 
   Future<void> modifierFormation(Formation formation) async {
-    await _db.from('formations').update(formation.toJson()).eq('id', formation.id);
+    await _col.doc(formation.id).update(formation.toJson());
   }
 
   Future<void> supprimerFormation(String id) async {
-    await _db.from('formations').delete().eq('id', id);
-  }
-
-  /// Upload l'image de couverture (Phase 7) et renvoie son URL publique
-  /// (bucket "formations-images" public — pas besoin d'URL signée, à la
-  /// différence des notes de cours).
-  Future<String> uploaderImage({
-    required String formationId,
-    required String nomFichier,
-    required Uint8List bytes,
-  }) async {
-    final fileId = DateTime.now().millisecondsSinceEpoch.toString();
-    final chemin = 'formations/$formationId/cover_$fileId-$nomFichier';
-    await _db.storage.from('formations-images').uploadBinary(
-          chemin,
-          bytes,
-          fileOptions: const FileOptions(upsert: true),
-        );
-    return _db.storage.from('formations-images').getPublicUrl(chemin);
+    await _col.doc(id).delete();
   }
 }

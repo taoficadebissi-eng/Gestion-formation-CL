@@ -28,22 +28,13 @@ import '../features/planning/ajouter_session_screen.dart';
 import '../features/planning/calendar_screen.dart';
 import '../features/suivi/apprenant_shell_screen.dart';
 
-// Imports Cours Publics & Super Admin
-// Réactiver AccueilPublicScreen() sur la route '/' pour remettre la
-// vitrine CoursLibre en ligne.
-// ignore: unused_import
-import '../features/cours_publics/screens/accueil_public_screen.dart';
-import '../features/cours_publics/screens/detail_cours_screen.dart';
-import '../features/cours_publics/models/cours_gratuit_model.dart';
-import '../features/auth/gestion_cours_screen.dart'; // Import corrigé vers le bon dossier
-import '../features/auth/liste_cours_screen.dart';
-
 // Models & Providers
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/centre_provider.dart';
 import '../providers/formation_provider.dart';
 import '../providers/user_provider.dart';
+import '../core/firebase/firestore_helpers.dart';
 
 /// Convertit les changements des providers d'auth/profil/centres en
 /// notifications pour GoRouter (`refreshListenable`), afin qu'un seul
@@ -52,7 +43,7 @@ import '../providers/user_provider.dart';
 /// Piège corrigé ici : l'ancienne version de ce fichier exposait
 /// `AppRouter.createRouter(user:, isLoading:, centres:)`, appelée à
 /// l'intérieur de `build()` dans `main.dart`. Comme ces paramètres
-/// changeaient à chaque évènement realtime Supabase (assez fréquents), un
+/// changeaient à chaque évènement temps réel Firestore (assez fréquents), un
 /// **nouveau** `GoRouter` était recréé à chaque fois — ce qui réinitialise
 /// toute la pile de navigation à `initialLocation` et relance `redirect`
 /// avec l'état du moment, parfois transitoire (ex: un `INSERT` realtime sur
@@ -82,31 +73,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       final userProfileAsync = ref.read(userProfileProvider);
       final centresAsync = ref.read(centresDuAdminProvider);
 
+      final firebaseUser = authState.value;
+      // Le super-admin n'a pas de profil dans `users` : il est reconnu par
+      // son e-mail vérifié (les règles Firestore refont la même vérification).
+      final estSuperAdmin =
+          firebaseUser != null &&
+          firebaseUser.emailVerified &&
+          firebaseUser.email?.toLowerCase() == superAdminEmail;
+
       final isLoading =
           authState.isLoading ||
-          userProfileAsync.isLoading ||
-          centresAsync.isLoading;
+          (!estSuperAdmin &&
+              (userProfileAsync.isLoading || centresAsync.isLoading));
       final user = userProfileAsync.value;
       final centres = centresAsync.value ?? [];
 
-      // NOTE : '/admin/gestion-cours' est publique au sens du router car le
-      // super-admin n'utilise pas Firebase Auth (accès caché par geste dans
-      // l'app, meme logique que '/super-admin'). La protection reelle de
-      // cette page repose sur les Firestore Security Rules et le fait que
-      // l'URL n'est pas exposee/linkee publiquement.
       final isPublicRoute =
           loc == '/login' ||
           loc == '/register' ||
-          loc == '/mot-de-passe-oublie' ||
-          loc == '/super-admin' ||
-          loc == '/admin/gestion-cours' ||
-          loc == '/admin/liste-cours' ||
-          loc.startsWith('/cours/');
+          loc == '/mot-de-passe-oublie';
 
       final isLoggedIn = user != null;
-      // '/' affiche temporairement LoginScreen (vitrine CoursLibre
-      // désactivée) : elle doit se comporter comme une route
-      // d'authentification, pas comme la route publique qu'elle était.
+      // '/' affiche LoginScreen : c'est une route d'authentification.
       final isAuthRoute =
           loc == '/' ||
           loc == '/login' ||
@@ -124,6 +112,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isLoading) {
         return loc == '/splash' ? null : '/splash';
       }
+
+      if (estSuperAdmin) {
+        return loc == '/super-admin' ? null : '/super-admin';
+      }
+      if (loc == '/super-admin') return '/login';
 
       if (isSplash && !isLoading) {
         if (!isLoggedIn) return '/';
@@ -186,9 +179,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        // TEMPORAIRE (démo client Gestion Formation) : vitrine CoursLibre
-        // désactivée, '/' pointe vers la connexion. Remettre
-        // `AccueilPublicScreen()` pour réactiver la vitrine.
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
@@ -329,27 +319,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/calendrier',
         builder: (context, state) => const CalendarScreen(),
-      ),
-      // ROUTES SUPER-ADMIN POUR LES COURS GRATUITS
-      GoRoute(
-        path: '/admin/gestion-cours',
-        builder: (context, state) => const GestionCoursScreen(),
-      ),
-      GoRoute(
-        path: '/admin/liste-cours',
-        builder: (context, state) => const ListeCoursScreen(),
-      ),
-      GoRoute(
-        path: '/cours/:id',
-        builder: (context, state) {
-          final cours = state.extra as CoursGratuit?;
-          if (cours == null) {
-            // Accès direct à l'URL sans passer par la carte (extra vide) :
-            // on renvoie vers la connexion plutôt que de crasher.
-            return const LoginScreen();
-          }
-          return DetailCoursScreen(cours: cours);
-        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

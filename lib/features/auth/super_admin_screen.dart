@@ -1,12 +1,17 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/supabase/supabase_config.dart';
+import '../../core/firebase/firestore_helpers.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/blurred_toast.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Espace super-admin : génération et suivi des codes d'invitation qui
+/// permettent à un futur admin de créer son compte. Accessible uniquement
+/// avec le compte Firebase du super-admin (e-mail vérifié), côté routeur et
+/// côté règles Firestore.
 class SuperAdminScreen extends ConsumerStatefulWidget {
   const SuperAdminScreen({super.key});
 
@@ -15,24 +20,30 @@ class SuperAdminScreen extends ConsumerStatefulWidget {
 }
 
 class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
-  final SupabaseClient _db = SupabaseConfig.client;
+  final _invitations = firestore.collection('invitations');
   bool _isLoading = false;
 
+  /// Code à 20 caractères tirés d'un générateur cryptographique : impossible
+  /// à deviner, contrairement à un code construit à partir de l'heure.
   String _genererCode() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch
-        .toString()
-        .substring(8);
-    final random = (DateTime.now().microsecond % 9000 + 1000).toString();
-    return 'INV-$timestamp-$random';
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
+    final partie = List.generate(
+      20,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+    ).join();
+    return 'INV-${partie.substring(0, 5)}-${partie.substring(5, 10)}-'
+        '${partie.substring(10, 15)}-${partie.substring(15)}';
   }
 
   Future<void> _creerCode() async {
     setState(() => _isLoading = true);
     try {
       final code = _genererCode();
-      await _db.from('invitations').insert({
+      await _invitations.doc(code).set({
         'token': code,
         'utilise': false,
+        'admin_id': null,
         'date_creation': DateTime.now().toIso8601String(),
       });
       if (mounted) {
@@ -47,12 +58,12 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
         BlurredToast.show(context, 'Erreur : $e', icon: Icons.error_outline);
       }
     }
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
-  Future<void> _supprimerCode(String id) async {
+  Future<void> _supprimerCode(String code) async {
     try {
-      await _db.from('invitations').delete().eq('id', id);
+      await _invitations.doc(code).delete();
       if (mounted) {
         BlurredToast.show(
           context,
@@ -69,11 +80,12 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
 
   void _copierCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    BlurredToast.show(
-      context,
-      'Code copie : $code',
-      icon: Icons.copy_rounded,
-    );
+    BlurredToast.show(context, 'Code copie : $code', icon: Icons.copy_rounded);
+  }
+
+  Future<void> _deconnecter() async {
+    await ref.read(authNotifierProvider.notifier).deconnexion();
+    if (mounted) context.go('/login');
   }
 
   @override
@@ -84,16 +96,16 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
         title: const Text('Super Admin'),
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(
-            '/login',
-          ), // Retour au login ou à l'accueil selon ta préférence
-        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Deconnexion',
+            onPressed: _deconnecter,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // --- SECTION 1 : GESTION DES INVITATIONS (EXISTANT) ---
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
@@ -107,7 +119,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Gestion des codes d invitation',
+                  'Gestion des codes d\'invitation',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
@@ -129,73 +141,9 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
               ],
             ),
           ),
-
-          // --- SECTION 2 : GESTION DES COURS GRATUITS (NOUVEAU) ---
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            color: Colors
-                .blue
-                .shade50, // Couleur différente pour distinguer les sections
-            child: Column(
-              children: [
-                const Icon(Icons.school_rounded, size: 48, color: Colors.blue),
-                const SizedBox(height: 12),
-                const Text(
-                  'Cours Gratuits Publics',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Ajouter ou modifier les cours visibles sur la page d accueil',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => context.go('/admin/gestion-cours'),
-                      icon: const Icon(Icons.edit_note),
-                      label: const Text('Ajouter un cours'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade700,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 16,
-                        ),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => context.go('/admin/liste-cours'),
-                      icon: const Icon(Icons.list_alt),
-                      label: const Text('Voir la liste des cours'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue.shade700,
-                        side: BorderSide(color: Colors.blue.shade700),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // --- LISTE DES CODES D INVITATION (EXISTANT) ---
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _db
-                  .from('invitations')
-                  .stream(primaryKey: ['id'])
-                  .order('date_creation', ascending: false),
+            child: StreamBuilder(
+              stream: _invitations.snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(child: Text('Erreur : ${snapshot.error}'));
@@ -204,10 +152,15 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data!;
+                final docs = snapshot.data!.toJsonListe()
+                  ..sort(
+                    (a, b) => (b['date_creation'] as String).compareTo(
+                      a['date_creation'] as String,
+                    ),
+                  );
 
                 if (docs.isEmpty) {
-                  return const Center(child: Text('Aucun code d invitation'));
+                  return const Center(child: Text('Aucun code d\'invitation'));
                 }
 
                 return ListView.builder(
@@ -215,7 +168,6 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final data = docs[index];
-                    final id = data['id'] as String;
                     final token = data['token'] as String;
                     final utilise = data['utilise'] as bool;
                     final dateCreation = DateTime.parse(
@@ -239,7 +191,8 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          '${utilise ? "Utilise" : "Disponible"} - ${dateCreation.day}/${dateCreation.month}/${dateCreation.year}',
+                          '${utilise ? "Utilise" : "Disponible"} - '
+                          '${dateCreation.day}/${dateCreation.month}/${dateCreation.year}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -258,7 +211,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                                 Icons.delete,
                                 color: AppColors.error,
                               ),
-                              onPressed: () => _supprimerCode(id),
+                              onPressed: () => _supprimerCode(token),
                               tooltip: 'Supprimer',
                             ),
                           ],

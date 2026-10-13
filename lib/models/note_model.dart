@@ -2,9 +2,7 @@ class NoteModel {
   final String id;
   final String formationId;
   final String nomFichier;
-  /// Chemin de l'objet dans le bucket Storage "notes" (pas une URL publique
-  /// : le bucket est privé, une URL signée est générée à la demande via
-  /// NoteService.obtenirUrlOuverture).
+  /// Lien https vers le document (hébergé hors de l'application).
   final String url;
   final String uploadePar;
   final DateTime dateAjout;

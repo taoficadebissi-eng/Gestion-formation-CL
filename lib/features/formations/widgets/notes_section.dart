@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,9 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/note_provider.dart';
 import '../../../widgets/blurred_toast.dart';
-
-const _extensionsAutorisees = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'doc', 'docx'];
-const _tailleMaxOctets = 20 * 1024 * 1024; // 20 Mo, aligné sur le bucket Storage
 
 IconData _iconePourFichier(String nomFichier) {
   final ext = nomFichier.split('.').last.toLowerCase();
@@ -52,49 +47,52 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
   bool _enCoursUpload = false;
 
   Future<void> _ajouterFichier() async {
-    // pickFile() (singulier) n'est pas encore implémenté sur le web par
-    // file_picker 12.x — utiliser pickFiles() avec allowMultiple: false
-    // (déprécié mais fonctionnel) en attendant.
-    List<PlatformFile> fichiers;
-    try {
-      // ignore: deprecated_member_use
-      fichiers = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: _extensionsAutorisees,
-        // ignore: deprecated_member_use
-        allowMultiple: false,
-      );
-    } catch (e) {
+    final nomController = TextEditingController();
+    final lienController = TextEditingController();
+    final valide = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ajouter un document'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nomController,
+              decoration: const InputDecoration(labelText: 'Nom du document'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: lienController,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'Lien (https://...)',
+                helperText: 'Google Drive, OneDrive, Dropbox...',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ajouter'),
+          ),
+        ],
+      ),
+    );
+    final nom = nomController.text.trim();
+    final lien = lienController.text.trim();
+    nomController.dispose();
+    lienController.dispose();
+    if (valide != true) return;
+    if (nom.isEmpty || lien.isEmpty) {
       if (mounted) {
         BlurredToast.show(
           context,
-          'Impossible d\'ouvrir le selecteur de fichier : $e',
-          icon: Icons.error_outline,
-        );
-      }
-      return;
-    }
-
-    if (fichiers.isEmpty) return;
-    final fichier = fichiers.first;
-    Uint8List bytes;
-    try {
-      bytes = await fichier.readAsBytes();
-    } catch (e) {
-      if (mounted) {
-        BlurredToast.show(
-          context,
-          'Fichier illisible, veuillez reessayer',
-          icon: Icons.error_outline,
-        );
-      }
-      return;
-    }
-    if (bytes.lengthInBytes > _tailleMaxOctets) {
-      if (mounted) {
-        BlurredToast.show(
-          context,
-          'Fichier trop lourd (max 20 Mo)',
+          'Nom et lien obligatoires',
           icon: Icons.error_outline,
         );
       }
@@ -105,34 +103,34 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
     try {
       await ref
           .read(noteServiceProvider)
-          .uploaderEtAjouter(
+          .ajouterLien(
             formationId: widget.formationId,
-            nomFichier: fichier.name,
-            bytes: bytes,
+            nomFichier: nom,
+            url: lien,
             uploadePar: widget.userId,
           );
       if (mounted) {
         BlurredToast.show(
           context,
-          'Fichier ajoute avec succes !',
+          'Document ajoute avec succes !',
           icon: Icons.check_circle_outline,
         );
       }
     } catch (e) {
       if (mounted) {
-        final message = e.toString().contains('SocketException')
-            ? 'Pas de connexion, reessayez plus tard'
-            : 'Erreur lors de l\'ajout du fichier : $e';
-        BlurredToast.show(context, message, icon: Icons.error_outline);
+        BlurredToast.show(
+          context,
+          'Erreur lors de l\'ajout du document : $e',
+          icon: Icons.error_outline,
+        );
       }
     } finally {
       if (mounted) setState(() => _enCoursUpload = false);
     }
   }
 
-  Future<void> _ouvrirFichier(String chemin) async {
+  Future<void> _ouvrirFichier(String url) async {
     try {
-      final url = await ref.read(noteServiceProvider).obtenirUrlOuverture(chemin);
       // Pas de `canLaunchUrl` avant sur web : ça casse la chaine de geste
       // utilisateur et bloque la popup (piège déjà documenté au README).
       final ok = await launchUrl(
@@ -150,9 +148,9 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
     }
   }
 
-  Future<void> _supprimerFichier(String noteId, String chemin) async {
+  Future<void> _supprimerFichier(String noteId) async {
     try {
-      await ref.read(noteServiceProvider).supprimer(noteId, chemin);
+      await ref.read(noteServiceProvider).supprimer(noteId);
       if (mounted) {
         BlurredToast.show(context, 'Fichier supprime', icon: Icons.delete_outline);
       }
@@ -186,7 +184,7 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
                     )
                   : IconButton(
                       icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary),
-                      tooltip: 'Ajouter un fichier',
+                      tooltip: 'Ajouter un document',
                       onPressed: _ajouterFichier,
                     ),
           ],
@@ -225,7 +223,7 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
                 padding: const EdgeInsets.all(20),
                 decoration: AppTheme.softCard(radius: 16),
                 child: const Text(
-                  'Aucun fichier depose pour le moment',
+                  'Aucun document depose pour le moment',
                   style: TextStyle(color: AppColors.textSecondary),
                 ),
               );
@@ -252,7 +250,7 @@ class _NotesSectionState extends ConsumerState<NotesSection> {
                         ? IconButton(
                             icon: const Icon(Icons.delete_outline, color: AppColors.error),
                             tooltip: 'Supprimer',
-                            onPressed: () => _supprimerFichier(note.id, note.url),
+                            onPressed: () => _supprimerFichier(note.id),
                           )
                         : const Icon(Icons.download_rounded, color: AppColors.textSecondary),
                   ),

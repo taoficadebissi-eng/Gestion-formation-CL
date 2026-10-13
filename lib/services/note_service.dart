@@ -1,49 +1,44 @@
-import 'dart:typed_data';
-import '../core/supabase/supabase_config.dart';
+import '../core/firebase/firestore_helpers.dart';
 import '../models/note_model.dart';
 
+/// Documents de cours d'une formation. Firebase Storage n'étant pas
+/// disponible sur le plan gratuit, une note est un lien (https) vers un
+/// document hébergé ailleurs (Google Drive, OneDrive, etc.).
 class NoteService {
-  final _db = SupabaseConfig.client;
+  final _col = firestore.collection('notes');
 
   Stream<List<NoteModel>> ecouterNotes(String formationId) {
-    return _db
-        .from('notes')
-        .stream(primaryKey: ['id'])
-        .eq('formation_id', formationId)
-        .order('date_ajout', ascending: false)
-        .map((rows) => rows.map(NoteModel.fromJson).toList());
+    return _col.where('formation_id', isEqualTo: formationId).snapshots().map((
+      s,
+    ) {
+      final liste = s.toJsonListe().map(NoteModel.fromJson).toList();
+      liste.sort((a, b) => b.dateAjout.compareTo(a.dateAjout));
+      return liste;
+    });
   }
 
-  Future<void> uploaderEtAjouter({
+  Future<void> ajouterLien({
     required String formationId,
     required String nomFichier,
-    required Uint8List bytes,
+    required String url,
     required String uploadePar,
   }) async {
-    final fileId = DateTime.now().millisecondsSinceEpoch.toString();
-    final chemin = 'formations/$formationId/notes/${fileId}_$nomFichier';
-
-    await _db.storage.from('notes').uploadBinary(chemin, bytes);
-
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || !uri.hasAuthority || uri.scheme != 'https') {
+      throw Exception('Le lien doit commencer par https://');
+    }
     final note = NoteModel(
       id: '',
       formationId: formationId,
-      nomFichier: nomFichier,
-      url: chemin,
+      nomFichier: nomFichier.trim(),
+      url: uri.toString(),
       uploadePar: uploadePar,
       dateAjout: DateTime.now(),
     );
-    await _db.from('notes').insert(note.toJson());
+    await _col.add(note.toJson());
   }
 
-  /// URL signée temporaire (1h) pour ouvrir/télécharger le fichier : le
-  /// bucket est privé, pas d'URL publique permanente.
-  Future<String> obtenirUrlOuverture(String chemin) async {
-    return await _db.storage.from('notes').createSignedUrl(chemin, 3600);
-  }
-
-  Future<void> supprimer(String noteId, String chemin) async {
-    await _db.storage.from('notes').remove([chemin]);
-    await _db.from('notes').delete().eq('id', noteId);
+  Future<void> supprimer(String noteId) async {
+    await _col.doc(noteId).delete();
   }
 }

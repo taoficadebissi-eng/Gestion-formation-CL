@@ -1,20 +1,21 @@
-import '../core/supabase/supabase_config.dart';
+import '../core/firebase/firestore_helpers.dart';
 import '../models/message_model.dart';
 
-/// Chat de groupe par formation (Phase 6).
+/// Chat de groupe par formation.
 class MessageService {
-  final _db = SupabaseConfig.client;
+  final _col = firestore.collection('messages');
 
   Stream<List<MessageModel>> ecouterMessages(String formationId) {
-    return _db
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('formation_id', formationId)
-        .order('date_envoi')
-        .map((rows) => rows.map(MessageModel.fromJson).toList());
+    return _col.where('formation_id', isEqualTo: formationId).snapshots().map((
+      s,
+    ) {
+      final liste = s.toJsonListe().map(MessageModel.fromJson).toList();
+      liste.sort((a, b) => a.dateEnvoi.compareTo(b.dateEnvoi));
+      return liste;
+    });
   }
 
   Future<void> envoyer(MessageModel message) async {
-    await _db.from('messages').insert(message.toJson());
+    await _col.add(message.toJson());
   }
 }

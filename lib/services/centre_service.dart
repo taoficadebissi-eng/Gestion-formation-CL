@@ -1,39 +1,37 @@
-import '../core/supabase/supabase_config.dart';
+import '../core/firebase/firestore_helpers.dart';
 import '../models/centre_model.dart';
 
 class CentreService {
-  final _db = SupabaseConfig.client;
+  final _col = firestore.collection('centres');
 
   Stream<List<CentreModel>> ecouterCentresAdmin(String adminId) {
-    return _db
-        .from('centres')
-        .stream(primaryKey: ['id'])
-        .eq('admin_id', adminId)
-        .map((rows) => rows.map(CentreModel.fromJson).toList());
+    return _col
+        .where('admin_id', isEqualTo: adminId)
+        .snapshots()
+        .map((s) => s.toJsonListe().map(CentreModel.fromJson).toList());
   }
 
   Stream<CentreModel?> ecouterCentre(String centreId) {
-    return _db
-        .from('centres')
-        .stream(primaryKey: ['id'])
-        .eq('id', centreId)
-        .map((rows) => rows.isEmpty ? null : CentreModel.fromJson(rows.first));
+    return _col.doc(centreId).snapshots().map((doc) {
+      final json = doc.toJsonAvecId();
+      return json == null ? null : CentreModel.fromJson(json);
+    });
   }
 
   Future<String> creerCentre(CentreModel centre) async {
-    final row = await _db.from('centres').insert(centre.toJson()).select().single();
-    return row['id'] as String;
+    final ref = await _col.add(centre.toJson());
+    return ref.id;
   }
 
   Future<void> modifierCentre(CentreModel centre) async {
-    await _db.from('centres').update(centre.toJson()).eq('id', centre.id);
+    await _col.doc(centre.id).update(centre.toJson());
   }
 
   Future<void> desactiverCentre(String id) async {
-    await _db.from('centres').update({'actif': false}).eq('id', id);
+    await _col.doc(id).update({'actif': false});
   }
 
   Future<void> supprimerCentre(String id) async {
-    await _db.from('centres').delete().eq('id', id);
+    await _col.doc(id).delete();
   }
 }

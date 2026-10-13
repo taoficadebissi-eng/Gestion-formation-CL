@@ -1,100 +1,127 @@
-import '../core/supabase/supabase_config.dart';
+import '../core/firebase/firestore_helpers.dart';
+import '../models/formation_model.dart';
 import '../models/inscription_model.dart';
 
 class InscriptionService {
-  final _db = SupabaseConfig.client;
+  final _col = firestore.collection('inscriptions');
 
-  // Le stream realtime de supabase_flutter n'accepte qu'un seul .eq() côté
-  // serveur : on filtre sur centreId (partition de tenant, alignée avec les
-  // policies RLS) puis on affine sur formationId côté client.
+  /// Une inscription par (apprenant, formation) : l'id déterministe empêche
+  /// la double inscription et permet aux règles Firestore de vérifier
+  /// l'inscription d'un apprenant sans requête.
+  static String idInscription(String apprenantId, String formationId) =>
+      '${apprenantId}_$formationId';
+
   Stream<List<InscriptionModel>> ecouterInscriptionsFormation(
     String formationId,
     String centreId,
   ) {
-    return _db
-        .from('inscriptions')
-        .stream(primaryKey: ['id'])
-        .eq('centre_id', centreId)
-        .map(
-          (rows) => rows
-              .where((row) => row['formation_id'] == formationId)
-              .map(InscriptionModel.fromJson)
-              .toList(),
-        );
+    return _col
+        .where('centre_id', isEqualTo: centreId)
+        .where('formation_id', isEqualTo: formationId)
+        .snapshots()
+        .map((s) => s.toJsonListe().map(InscriptionModel.fromJson).toList());
   }
 
-  // Inchangé : un apprenant lit toujours SES propres inscriptions,
-  // donc la règle "apprenantId == request.auth.uid" suffit, pas besoin de centreId ici.
   Stream<List<InscriptionModel>> ecouterInscriptionsApprenant(
     String apprenantId,
   ) {
-    return _db
-        .from('inscriptions')
-        .stream(primaryKey: ['id'])
-        .eq('apprenant_id', apprenantId)
-        .map((rows) => rows.map(InscriptionModel.fromJson).toList());
+    return _col
+        .where('apprenant_id', isEqualTo: apprenantId)
+        .snapshots()
+        .map((s) => s.toJsonListe().map(InscriptionModel.fromJson).toList());
   }
 
   Future<bool> estInscrit(String apprenantId, String formationId) async {
-    final rows = await _db
-        .from('inscriptions')
-        .select('id')
-        .eq('apprenant_id', apprenantId)
-        .eq('formation_id', formationId);
-    return rows.isNotEmpty;
+    final doc = await _col.doc(idInscription(apprenantId, formationId)).get();
+    return doc.exists;
   }
 
   Future<void> inscrire(InscriptionModel inscription) async {
-    final dejaInscrit = await estInscrit(
-      inscription.apprenantId,
-      inscription.formationId,
+    final ref = _col.doc(
+      idInscription(inscription.apprenantId, inscription.formationId),
     );
-    if (dejaInscrit) {
+    if ((await ref.get()).exists) {
       throw Exception('Vous etes deja inscrit a cette formation');
     }
-    await _db.from('inscriptions').insert(inscription.toJson());
+    final formationDoc = await firestore
+        .collection('formations')
+        .doc(inscription.formationId)
+        .get();
+    final json = formationDoc.toJsonAvecId();
+    if (json == null) throw Exception('Formation introuvable');
+    final frais = Formation.fromJson(json).fraisTotal;
+
+    // Etat de paiement initial : les règles Firestore l'imposent aux
+    // non-admins (rien payé, tout le montant restant dû).
+    await ref.set({
+      ...inscription.toJson(),
+      'statut_paiement': StatutPaiement.aJour.toJson(),
+      'montant_paye': 0,
+      'montant_restant': frais,
+    });
   }
 
   Future<void> modifier(InscriptionModel inscription) async {
-    await _db
-        .from('inscriptions')
-        .update(inscription.toJson())
-        .eq('id', inscription.id);
+    await _col.doc(inscription.id).update({'statut': inscription.statut.name});
   }
 
   Future<void> annuler(String id) async {
-    await _db.from('inscriptions').delete().eq('id', id);
+    await _col.doc(id).delete();
   }
 
-  /// Enregistre un paiement manuel (validé par l'admin) via l'Edge Function
-  /// `enregistrer-paiement`, seule habilitée à recalculer montantPaye /
-  /// montantRestant / statutPaiement (voir le trigger
-  /// prevent_direct_payment_change dans 0002_phase2.sql — écrire ces champs
-  /// directement depuis le client est bloqué par la base, intentionnellement).
+  /// Enregistre un paiement manuel : ajoute la ligne dans `paiements` et met
+  /// à jour l'inscription dans une même transaction. Les règles Firestore
+  /// réservent les deux écritures à l'admin propriétaire du centre et
+  /// vérifient que le total payé augmente exactement du montant saisi.
   Future<void> enregistrerPaiement({
     required String inscriptionId,
     required double montant,
     String methode = 'manuel',
     String reference = '',
   }) async {
-    await _db.functions.invoke(
-      'enregistrer-paiement',
-      body: {
-        'inscriptionId': inscriptionId,
+    if (montant <= 0) throw Exception('Montant invalide');
+    final inscriptionRef = _col.doc(inscriptionId);
+
+    await firestore.runTransaction((tx) async {
+      final inscriptionDoc = await tx.get(inscriptionRef);
+      final json = inscriptionDoc.toJsonAvecId();
+      if (json == null) throw Exception('Inscription introuvable');
+      final inscription = InscriptionModel.fromJson(json);
+
+      final formationDoc = await tx.get(
+        firestore.collection('formations').doc(inscription.formationId),
+      );
+      final formationJson = formationDoc.toJsonAvecId();
+      final frais = formationJson == null
+          ? 0.0
+          : Formation.fromJson(formationJson).fraisTotal;
+
+      final nouveauPaye = inscription.montantPaye + montant;
+      final nouveauRestant = (frais - nouveauPaye).clamp(0, double.infinity);
+      final nouveauStatut = nouveauRestant <= 0
+          ? StatutPaiement.aJour
+          : inscription.statutPaiement;
+
+      tx.set(firestore.collection('paiements').doc(), {
+        'inscription_id': inscriptionId,
         'montant': montant,
+        'date': DateTime.now().toIso8601String(),
         'methode': methode,
         'reference': reference,
-      },
-    );
+      });
+      tx.update(inscriptionRef, {
+        'montant_paye': nouveauPaye,
+        'montant_restant': nouveauRestant,
+        'statut_paiement': nouveauStatut.toJson(),
+      });
+    });
   }
 
-  /// Force/leve manuellement le statut "bloque" — action admin directe,
-  /// autorisée par le trigger de protection (is_owner_of_centre) sans
-  /// passer par l'Edge Function.
+  /// Force/lève manuellement le statut "bloqué" (action admin).
   Future<void> togglerBlocage(String inscriptionId, bool bloquer) async {
-    await _db
-        .from('inscriptions')
-        .update({'statut_paiement': bloquer ? 'bloque' : 'a_jour'})
-        .eq('id', inscriptionId);
+    await _col.doc(inscriptionId).update({
+      'statut_paiement': (bloquer ? StatutPaiement.bloque : StatutPaiement.aJour)
+          .toJson(),
+    });
   }
 }
