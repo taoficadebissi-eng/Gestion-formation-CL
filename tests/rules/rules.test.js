@@ -263,3 +263,22 @@ describe('presences', () => {
     await assertFails(getDocs(query(collection(db(ctx.app2()), 'presences'), where('centre_id', '==', 'c1'), where('apprenant_id', '==', 'app1'))));
   });
 });
+
+describe('CoursLibre (meme projet)', () => {
+  it('cours: lecture publique, ecriture super-admin seulement', async () => {
+    await assertSucceeds(getDocs(collection(db(ctx.anon()), 'cours_gratuits')));
+    await assertSucceeds(setDoc(doc(db(ctx.sup()), 'cours_gratuits/c1'), { titre: 'x' }));
+    await assertFails(setDoc(doc(db(ctx.admin()), 'cours_gratuits/c2'), { titre: 'x' }));
+    await assertFails(setDoc(doc(db(ctx.supNonVerifie()), 'cours_gratuits/c3'), { titre: 'x' }));
+    await assertFails(setDoc(doc(db(ctx.anon()), 'cours_gratuits/c4'), { titre: 'x' }));
+  });
+
+  it('compteur: +1 anonyme uniquement', async () => {
+    const ref = (c) => doc(db(c), 'compteur/visiteurs');
+    await assertSucceeds(setDoc(ref(ctx.anon()), { total: 1 }));
+    await assertSucceeds(setDoc(ref(ctx.anon()), { total: 2 }));
+    await assertFails(setDoc(ref(ctx.anon()), { total: 500 }));
+    await assertFails(setDoc(ref(ctx.anon()), { total: 3, autre: 1 }));
+    await assertFails(deleteDoc(ref(ctx.sup())));
+  });
+});

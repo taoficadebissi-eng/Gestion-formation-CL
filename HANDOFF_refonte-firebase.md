@@ -10,13 +10,14 @@
 - Fichiers/images : liens https (Storage indisponible sur Spark).
 - CoursLibre extrait dans `../coursLibre` (projet Flutter web autonome).
 
+## Projet Firebase unique
+Les deux applications partagent `gestion-de-formation-5b049`. Les règles
+Firestore des deux vivent dans `gestion/firestore.rules` (seul fichier à
+déployer). CoursLibre n'a que son site d'hébergement `courslibre-gf`.
+
 ## À faire par le propriétaire
-1. Créer le projet Firebase de CoursLibre, activer Authentication (e-mail/mot de
-   passe) + Firestore, puis dans `coursLibre/` : `flutterfire configure` pour
-   remplacer `lib/firebase_options.dart` (actuellement une copie provisoire de
-   celle de Gestion) et mettre à jour `.firebaserc`.
-2. Créer et vérifier le compte super-admin dans les deux projets Firebase.
-3. `firebase deploy --only firestore:rules,hosting` dans chaque projet.
-4. Mettre à jour `urlGestionFormation` (`coursLibre/lib/core/config/app_config.dart`)
-   si l'URL d'hébergement de Gestion change.
-5. Pousser sur GitHub (voir README / consignes de la session).
+1. Créer le site d'hébergement : `firebase hosting:sites:create courslibre-gf`.
+2. Créer et vérifier le compte super-admin dans Firebase Authentication.
+3. Déployer les règles (dossier gestion) puis chaque site.
+4. Mettre à jour `urlGestionFormation` dans `coursLibre/lib/core/config/app_config.dart`
+   si l'URL de Gestion change.

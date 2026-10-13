@@ -1,5 +1,12 @@
 rules_version = '2';
 
+// Projet Firebase partagé par deux applications :
+//  - Gestion Formation (plateforme multi-centres) : toutes les collections
+//    ci-dessous sauf `cours_gratuits` et `compteur` ;
+//  - CoursLibre (vitrine publique) : `cours_gratuits` et `compteur`.
+// CE FICHIER EST LE SEUL À DÉPLOYER (firebase deploy --only firestore:rules,
+// depuis le dossier gestion) : le dossier coursLibre ne déploie pas de règles.
+//
 // Gestion Formation : plateforme multi-centres (admin / formateur / apprenant).
 //
 // Principes :
@@ -498,6 +505,30 @@ service cloud.firestore {
       );
 
       allow delete: if isSuperAdmin();
+    }
+
+    // ========================================
+    // COURSLIBRE : cours gratuits et compteur de visiteurs
+    // ========================================
+    // Lecture publique ; écriture des cours réservée au super-admin. Le
+    // compteur est la seule écriture sans connexion, bornée à +1.
+    match /cours_gratuits/{coursId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /compteur/{docId} {
+      allow read: if true;
+
+      allow create: if docId == 'visiteurs'
+        && request.resource.data.keys().hasOnly(['total'])
+        && request.resource.data.total == 1;
+
+      allow update: if docId == 'visiteurs'
+        && request.resource.data.keys().hasOnly(['total'])
+        && request.resource.data.total == resource.data.total + 1;
+
+      allow delete: if false;
     }
   }
 }
