@@ -86,3 +86,12 @@ firebase deploy --only firestore:rules,hosting
 - Web : ne pas faire `await canLaunchUrl()` avant `launchUrl` (casse le geste utilisateur).
 - Dart/dart2js : passer par `.toString()` pour les valeurs `dynamic` (enums).
 - Toujours tester `flutter build web --release`, pas seulement le debug.
+
+## Déploiement web : pas de cache d'application
+Le build web se fait avec `--pwa-strategy=none` (plus de « service worker » qui
+garde l'ancienne version dans le navigateur). `main.dart.js` et `index.html` sont
+servis en `no-cache` : une mise à jour est visible au rechargement suivant.
+```bash
+flutter build web --release --pwa-strategy=none
+firebase deploy --only hosting --project gestion-de-formation-5b049
+```
