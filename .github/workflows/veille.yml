@@ -22,6 +22,10 @@ on:
         description: 'Une seule source (ex : cursa), sinon toutes'
         type: string
         default: ''
+      pages:
+        description: 'Nombre maximal de pages par source (vide = valeur de criteres.json)'
+        type: string
+        default: ''
 
 concurrency:
   group: veille
@@ -57,8 +61,10 @@ jobs:
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           SIMULATION: ${{ inputs.simulation }}
           SOURCE: ${{ inputs.source }}
+          PAGES: ${{ inputs.pages }}
         run: |
           args=()
           [ "$SIMULATION" = "true" ] && args+=(--dry-run)
           [ -n "$SOURCE" ] && args+=("--source=$SOURCE")
+          [[ "$PAGES" =~ ^[0-9]+$ ]] && args+=("--max=$PAGES")
           node src/run.mjs "${args[@]}"

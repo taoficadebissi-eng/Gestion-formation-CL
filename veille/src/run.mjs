@@ -102,11 +102,14 @@ async function main() {
   const gemini = new ClientGemini({ cle: process.env.GEMINI_API_KEY, modele: process.env.GEMINI_MODEL || '' });
   await gemini.preparer();
   let depot = null;
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT?.trim()) {
     const { DepotFirestore } = await import('./depot.mjs');
     depot = new DepotFirestore(process.env.FIREBASE_SERVICE_ACCOUNT);
+    console.log(`Base de données connectée (projet ${depot.projet}).`);
   } else if (!options.dryRun) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT manquant (utilisez --dry-run pour essayer sans écrire).');
+    throw new Error('FIREBASE_SERVICE_ACCOUNT manquant ou vide (utilisez --dry-run pour essayer sans écrire).');
+  } else {
+    console.log('⚠ Base de données NON connectée (FIREBASE_SERVICE_ACCOUNT manquant ou vide) : les cours déjà publiés ne seront pas détectés.');
   }
   const bilan = await executer({ sources: lire('sources.json').sources, criteres: lire('criteres.json'), gemini, depot, options });
   console.log('\n' + resume(bilan, options));

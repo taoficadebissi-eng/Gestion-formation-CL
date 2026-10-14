@@ -6,8 +6,12 @@ import { normaliserUrl } from './normalisation.mjs';
 
 export class DepotFirestore {
   constructor(compteDeService) {
-    const credential = compteDeService ? cert(JSON.parse(compteDeService)) : applicationDefault();
-    initializeApp({ credential, projectId: 'gestion-de-formation-5b049' });
+    const cle = compteDeService ? JSON.parse(compteDeService) : null;
+    this.projet = cle?.project_id ?? 'gestion-de-formation-5b049';
+    if (this.projet !== 'gestion-de-formation-5b049') {
+      throw new Error(`Le compte de service est celui du projet « ${this.projet} », pas de gestion-de-formation-5b049.`);
+    }
+    initializeApp({ credential: cle ? cert(cle) : applicationDefault(), projectId: this.projet });
     this.db = getFirestore();
   }
 

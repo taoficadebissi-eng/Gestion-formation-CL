@@ -169,9 +169,10 @@ test('quota Gemini épuisé : arrêt propre, reprise au prochain passage', async
 
 test('ordonnerModeles : « flash » stables récents, puis « lite » ; preview/pro écartés', () => {
   const m = (n) => ({ name: `models/${n}`, supportedGenerationMethods: ['generateContent'] });
-  const liste = [m('gemini-2.5-flash'), m('gemini-3.8-flash'), m('gemini-3.8-flash-lite'), m('gemini-3.8-flash-preview-09'), m('gemini-3.7-flash'), m('gemini-3.8-pro'), { name: 'models/emb', supportedGenerationMethods: ['embedContent'] }];
-  assert.deepEqual(ordonnerModeles(liste, ''), ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-3.8-flash-lite']);
-  assert.deepEqual(ordonnerModeles(liste, 'gemini-3.7-flash').slice(0, 2), ['gemini-3.7-flash', 'gemini-3.8-flash']);
+  const liste = [m('gemini-2.5-flash'), m('gemini-3.8-flash'), m('gemini-3.8-flash-lite'), m('gemini-3.8-flash-preview-09'), m('gemini-3.7-flash'), m('gemini-3.8-pro'), m('gemini-omni-1.1-flash'), m('gemini-flash-latest'), m('gemini-3.10-flash'), { name: 'models/emb', supportedGenerationMethods: ['embedContent'] }];
+  assert.deepEqual(ordonnerModeles(liste, ''), ['gemini-3.10-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-3.8-flash-lite']);
+  assert.deepEqual(ordonnerModeles(liste, 'gemini-3.7-flash').slice(0, 2), ['gemini-3.7-flash', 'gemini-3.10-flash']);
+  assert.ok(!ordonnerModeles(liste, '').some((n) => /omni|latest|preview|pro/.test(n)));
 });
 
 test('modeleRefuse reconnaît un modèle retiré ou hors quota gratuit', () => {

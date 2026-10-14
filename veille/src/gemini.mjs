@@ -58,10 +58,18 @@ export function ordonnerModeles(liste, souhaite) {
   const utilisables = liste
     .filter((m) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
     .map((m) => m.name.replace(/^models\//, ''));
-  const ecartes = /image|tts|live|thinking|exp|preview|audio|robotics|latest/i;
-  const recents = (a, b) => b.localeCompare(a, 'en', { numeric: true });
-  const flash = utilisables.filter((n) => /flash/i.test(n) && !/lite/i.test(n) && !ecartes.test(n)).sort(recents);
-  const lite = utilisables.filter((n) => /flash.*lite|lite.*flash/i.test(n) && !ecartes.test(n)).sort(recents);
+  // Seuls les modèles « gemini-<version>-flash[-lite] » : un nom sans numéro de
+  // version (omni, latest, preview, image, audio...) n'est jamais retenu.
+  const version = (n) => n.match(/^gemini-(\d+(?:\.\d+)*)-flash(-lite)?$/);
+  const parVersion = (a, b) => {
+    const [x, y] = [a, b].map((n) => version(n)[1].split('.').map(Number));
+    for (let i = 0; i < Math.max(x.length, y.length); i++) {
+      if ((y[i] ?? 0) !== (x[i] ?? 0)) return (y[i] ?? 0) - (x[i] ?? 0);
+    }
+    return 0;
+  };
+  const flash = utilisables.filter((n) => version(n) && !version(n)[2]).sort(parVersion);
+  const lite = utilisables.filter((n) => version(n) && version(n)[2]).sort(parVersion);
   const ordre = [];
   if (souhaite && utilisables.includes(souhaite)) ordre.push(souhaite);
   for (const n of [...flash, ...lite]) if (!ordre.includes(n)) ordre.push(n);
