@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/firebase/firestore_helpers.dart';
 import '../models/cours_gratuit_model.dart';
 import '../models/proposition_model.dart';
+import '../models/veille_model.dart';
 
 /// Cours gratuits affichés sur la vitrine publique CoursLibre (projet
 /// séparé). Les règles Firestore réservent l'écriture au super-admin.
@@ -85,5 +87,45 @@ class CoursAdminService {
   /// veille ne la repropose pas.
   Future<void> rejeter(String propositionId) async {
     await _propositions.doc(propositionId).update({'statut': 'rejete'});
+  }
+
+  // ---------- Lancement et état de la veille ----------
+
+  final _demandes = firestore.collection('veille_demandes');
+
+  Stream<EtatVeille?> ecouterEtatVeille() {
+    return firestore.collection('veille_etat').doc('courant').snapshots().map((
+      doc,
+    ) {
+      final data = doc.data();
+      return data == null ? null : EtatVeille.fromMap(data);
+    });
+  }
+
+  /// Dernière demande de lancement (la plus récente).
+  Stream<DemandeVeille?> ecouterDerniereDemande() {
+    return _demandes
+        .orderBy('dateDemande', descending: true)
+        .limit(1)
+        .snapshots()
+        .map(
+          (s) => s.docs.isEmpty ? null : DemandeVeille.fromDoc(s.docs.first),
+        );
+  }
+
+  /// Dépose une demande ; la tâche de veille (GitHub) la lit dans les
+  /// minutes qui suivent. Refuse s'il y en a déjà une en cours.
+  Future<void> lancerVeille() async {
+    final actives = await _demandes
+        .where('statut', whereIn: ['en_attente', 'en_cours'])
+        .limit(1)
+        .get();
+    if (actives.docs.isNotEmpty) {
+      throw Exception('Une demande est deja en cours');
+    }
+    await _demandes.add({
+      'statut': 'en_attente',
+      'dateDemande': FieldValue.serverTimestamp(),
+    });
   }
 }

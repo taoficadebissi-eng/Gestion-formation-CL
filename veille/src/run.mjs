@@ -12,6 +12,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decouvrir } from './decouverte.mjs';
+import { executerAvecEtat, traiterDemandes } from './demandes.mjs';
 import { ClientGemini, ErreurQuota, consigne } from './gemini.mjs';
 import { formaterPourIA, resumerPage, telecharger } from './html.mjs';
 import { idProposition, validerExtraction } from './normalisation.mjs';
@@ -92,27 +93,48 @@ function resume(bilan, options) {
   return lignes;
 }
 
+async function ouvrirDepot(options) {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT?.trim()) {
+    const { DepotFirestore } = await import('./depot.mjs');
+    const depot = new DepotFirestore(process.env.FIREBASE_SERVICE_ACCOUNT);
+    console.log(`Base de données connectée (projet ${depot.projet}).`);
+    return depot;
+  }
+  if (!options.dryRun) throw new Error('FIREBASE_SERVICE_ACCOUNT manquant ou vide (utilisez --dry-run pour essayer sans écrire).');
+  console.log('⚠ Base de données NON connectée (FIREBASE_SERVICE_ACCOUNT manquant ou vide) : les cours déjà publiés ne seront pas détectés.');
+  return null;
+}
+
 async function main() {
-  const options = { dryRun: false };
+  const options = { dryRun: false, demandes: false };
   for (const a of process.argv.slice(2)) {
     if (a === '--dry-run') options.dryRun = true;
+    else if (a === '--demandes') options.demandes = true;
     else if (a.startsWith('--source=')) options.source = a.slice(9);
     else if (a.startsWith('--max=')) options.max = Number(a.slice(6));
   }
-  const gemini = new ClientGemini({ cle: process.env.GEMINI_API_KEY, modele: process.env.GEMINI_MODEL || '' });
-  await gemini.preparer();
-  let depot = null;
-  if (process.env.FIREBASE_SERVICE_ACCOUNT?.trim()) {
-    const { DepotFirestore } = await import('./depot.mjs');
-    depot = new DepotFirestore(process.env.FIREBASE_SERVICE_ACCOUNT);
-    console.log(`Base de données connectée (projet ${depot.projet}).`);
-  } else if (!options.dryRun) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT manquant ou vide (utilisez --dry-run pour essayer sans écrire).');
-  } else {
-    console.log('⚠ Base de données NON connectée (FIREBASE_SERVICE_ACCOUNT manquant ou vide) : les cours déjà publiés ne seront pas détectés.');
+  const depot = await ouvrirDepot(options);
+
+  // Un passage complet : prépare Gemini, lit les sites, dépose les propositions.
+  const lancer = async () => {
+    const gemini = new ClientGemini({ cle: process.env.GEMINI_API_KEY, modele: process.env.GEMINI_MODEL || '' });
+    await gemini.preparer();
+    const bilan = await executer({ sources: lire('sources.json').sources, criteres: lire('criteres.json'), gemini, depot, options });
+    console.log('\n' + resume(bilan, options));
+    return bilan;
+  };
+
+  if (options.demandes) {
+    await traiterDemandes({ depot, lancer });
+    return;
   }
-  const bilan = await executer({ sources: lire('sources.json').sources, criteres: lire('criteres.json'), gemini, depot, options });
-  console.log('\n' + resume(bilan, options));
+  if (depot && !options.dryRun) {
+    const declencheur = process.env.GITHUB_EVENT_NAME === 'schedule' ? 'planifie' : 'manuel';
+    const { statut } = await executerAvecEtat({ depot, lancer, declencheur });
+    if (statut === 'erreur') process.exitCode = 1;
+    return;
+  }
+  const bilan = await lancer();
   if (bilan.proposes === 0 && bilan.erreurs > 0 && bilan.ignores === 0) process.exitCode = 1;
 }
 

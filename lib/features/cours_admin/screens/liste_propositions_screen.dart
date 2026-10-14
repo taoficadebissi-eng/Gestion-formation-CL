@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../models/proposition_model.dart';
 import '../providers/cours_admin_provider.dart';
+import '../widgets/carte_etat_veille.dart';
 
 /// Cours trouvés par la veille automatique, à valider un par un.
 class ListePropositionsScreen extends ConsumerWidget {
@@ -25,34 +26,30 @@ class ListePropositionsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erreur : $e')),
         data: (liste) {
-          if (liste.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  'Aucune proposition en attente.\n\n'
-                  'La veille automatique en ajoute de nouvelles chaque semaine.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
-            );
-          }
-          return ListView.builder(
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: liste.length + 1,
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return Padding(
+            children: [
+              const CarteEtatVeille(),
+              if (liste.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                  child: Text(
+                    'Aucune proposition en attente.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                )
+              else ...[
+                Padding(
                   padding: const EdgeInsets.only(bottom: 12, left: 4),
                   child: Text(
                     '${liste.length} proposition${liste.length > 1 ? "s" : ""} a valider',
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
-                );
-              }
-              return _CarteProposition(proposition: liste[index - 1]);
-            },
+                ),
+                ...liste.map((p) => _CarteProposition(proposition: p)),
+              ],
+            ],
           );
         },
       ),

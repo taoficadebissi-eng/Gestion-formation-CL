@@ -525,6 +525,25 @@ service cloud.firestore {
     }
 
     // ========================================
+    // VEILLE : demandes de lancement et état
+    // ========================================
+    // Le super-admin dépose une demande (bouton de l'application) ; le
+    // programme de veille (SDK Admin) la traite et tient l'état à jour.
+    match /veille_demandes/{demandeId} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin()
+        && request.resource.data.keys().hasOnly(['statut', 'dateDemande'])
+        && request.resource.data.statut == 'en_attente'
+        && request.resource.data.dateDemande == request.time;
+      allow update, delete: if false;
+    }
+
+    match /veille_etat/{etatId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    // ========================================
     // COURSLIBRE : cours gratuits et compteur de visiteurs
     // ========================================
     // Lecture publique ; écriture des cours réservée au super-admin. Le

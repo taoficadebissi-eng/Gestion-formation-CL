@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/cours_gratuit_model.dart';
 import '../models/proposition_model.dart';
+import '../models/veille_model.dart';
 import '../services/cours_admin_service.dart';
 
 final coursAdminServiceProvider = Provider<CoursAdminService>(
@@ -17,4 +18,12 @@ final visiteursProvider = StreamProvider<int>(
 
 final propositionsProvider = StreamProvider<List<PropositionCours>>(
   (ref) => ref.watch(coursAdminServiceProvider).ecouterPropositions(),
+);
+
+final etatVeilleProvider = StreamProvider<EtatVeille?>(
+  (ref) => ref.watch(coursAdminServiceProvider).ecouterEtatVeille(),
+);
+
+final derniereDemandeProvider = StreamProvider<DemandeVeille?>(
+  (ref) => ref.watch(coursAdminServiceProvider).ecouterDerniereDemande(),
 );

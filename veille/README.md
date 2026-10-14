@@ -28,8 +28,18 @@ Le texte des pages est traité comme une donnée (consigne anti-injection).
   nombre de pages par source et par passage, pause entre appels (quota gratuit Gemini).
 
 ## Utilisation
-Automatique : chaque lundi (GitHub Actions, onglet **Actions → Veille de cours**).
-Manuelle : même onglet, **Run workflow** (case « simulation » pour ne rien écrire).
+- **Depuis l'application** : *Espace super-admin → Propositions de cours → Lancer la
+  veille maintenant*. L'application dépose une demande (`veille_demandes`) ; la
+  tâche **Veille - demandes de l'application** (toutes les ~10 min) la lit et
+  lance la veille. L'état (en attente / en cours / terminé / échec) s'affiche en
+  direct dans l'application (`veille_etat/courant`). Délai de démarrage : jusqu'à
+  10-15 min (GitHub retarde parfois ses tâches planifiées).
+- **Chaque lundi** : tâche **Veille de cours** (GitHub Actions).
+- **À la main** : onglet **Actions → Veille de cours → Run workflow** (case
+  « simulation » pour ne rien écrire, champs `source` et `pages`).
+
+Les tâches planifiées d'un dépôt sans aucune activité pendant 60 jours sont
+désactivées par GitHub : un simple commit les réactive.
 
 En local :
 ```bash

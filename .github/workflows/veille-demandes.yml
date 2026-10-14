@@ -1,0 +1,45 @@
+# Lit les demandes de lancement faites depuis l'application (bouton
+# « Lancer la veille maintenant ») et exécute la veille s'il y en a une.
+# S'exécute toutes les 10 minutes environ ; GitHub peut retarder ces tâches
+# planifiées de quelques minutes. Sans demande, la tâche s'arrête en quelques
+# secondes.
+#
+# Secrets : GEMINI_API_KEY, FIREBASE_SERVICE_ACCOUNT (voir veille/README.md).
+name: Veille - demandes de l'application
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: veille
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  demandes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: veille
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: veille/package-lock.json
+
+      - run: npm ci
+
+      - name: Traiter les demandes
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+        run: node src/run.mjs --demandes

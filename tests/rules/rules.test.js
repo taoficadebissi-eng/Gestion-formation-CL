@@ -5,7 +5,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 const SUPER_EMAIL = 'taoficadebissi@gmail.com';
 let env;
@@ -347,5 +347,37 @@ describe('propositions de cours (veille)', () => {
     mauvais.set(doc(d, 'cours_gratuits/nouveau2'), { titre: 'X', lienCours: 'http://non-https.example', lienImage: null });
     mauvais.update(doc(d, 'cours_propositions/p1'), { statut: 'approuve' });
     await assertFails(mauvais.commit());
+  });
+});
+
+describe('veille : demandes et état', () => {
+  it('le super-admin dépose une demande valide, les autres non', async () => {
+    const demande = (extra = {}) => ({ statut: 'en_attente', dateDemande: serverTimestamp(), ...extra });
+    await assertSucceeds(setDoc(doc(db(ctx.sup()), 'veille_demandes/d1'), demande()));
+    await assertFails(setDoc(doc(db(ctx.admin()), 'veille_demandes/d2'), demande()));
+    await assertFails(setDoc(doc(db(ctx.anon()), 'veille_demandes/d3'), demande()));
+    await assertFails(setDoc(doc(db(ctx.supNonVerifie()), 'veille_demandes/d4'), demande()));
+  });
+
+  it('une demande ne peut pas être forgée (autre statut, autre champ, date truquée)', async () => {
+    const d = db(ctx.sup());
+    await assertFails(setDoc(doc(d, 'veille_demandes/f1'), { statut: 'termine', dateDemande: serverTimestamp() }));
+    await assertFails(setDoc(doc(d, 'veille_demandes/f2'), { statut: 'en_attente', dateDemande: serverTimestamp(), message: 'x' }));
+    await assertFails(setDoc(doc(d, 'veille_demandes/f3'), { statut: 'en_attente', dateDemande: new Date('2020-01-01') }));
+  });
+
+  it('aucune modification ni suppression par un client ; lecture réservée', async () => {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const d = c.firestore();
+      await setDoc(doc(d, 'veille_demandes/d9'), { statut: 'en_attente' });
+      await setDoc(doc(d, 'veille_etat/courant'), { statut: 'termine' });
+    });
+    await assertSucceeds(getDoc(doc(db(ctx.sup()), 'veille_demandes/d9')));
+    await assertSucceeds(getDoc(doc(db(ctx.sup()), 'veille_etat/courant')));
+    await assertFails(getDoc(doc(db(ctx.admin()), 'veille_etat/courant')));
+    await assertFails(getDoc(doc(db(ctx.anon()), 'veille_demandes/d9')));
+    await assertFails(updateDoc(doc(db(ctx.sup()), 'veille_demandes/d9'), { statut: 'termine' }));
+    await assertFails(deleteDoc(doc(db(ctx.sup()), 'veille_demandes/d9')));
+    await assertFails(setDoc(doc(db(ctx.sup()), 'veille_etat/courant'), { statut: 'termine' }));
   });
 });

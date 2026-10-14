@@ -6,6 +6,7 @@ import { extraireLiens } from '../src/decouverte.mjs';
 import { formaterPourIA, resumerPage } from '../src/html.mjs';
 import { ClientGemini, SCHEMA, choisirModele, consigne, corpsRequete, modeleRefuse, ordonnerModeles } from '../src/gemini.mjs';
 import { executer } from '../src/run.mjs';
+import { executerAvecEtat, messageBilan, statutBilan, traiterDemandes } from '../src/demandes.mjs';
 
 const criteres = { langues: ['Français'], gratuitObligatoire: true, confianceMinimale: 0.5, niveauxAcceptes: ['Débutant', 'Intermédiaire', 'Avancé'], maxPagesParSource: 5, pauseEntreAppelsMs: 0 };
 const brutValide = { estUnCours: true, gratuit: true, titre: 'HTML et CSS', description: 'Apprenez les bases.', descriptionDetaillee: 'Un cours complet.', fournisseur: 'Cursa', niveau: 'Débutant', duree: '10 h', langue: 'Français', certificatDisponible: true, certificatPayant: true, categorie: 'Développeurs web', lienImage: 'https://img.exemple/a.png', dateFin: null, confiance: 0.9, remarques: '' };
@@ -230,4 +231,60 @@ test('quota quotidien épuisé : bascule vers le modèle « lite » (quota plus 
 
   const seul = new ClientGemini({ cle: 'k', modele: 'gemini-3.8-flash', fetchFn: async () => reponse(429, 'GenerateRequestsPerDayPerProjectPerModel-FreeTier'), pause: async () => {} });
   await assert.rejects(() => seul.extraire('p', 'c'), /quota/i);
+});
+
+// ---------- File d'attente des demandes (bouton de l'application) ----------
+function fauxDepotDemandes({ attente = [], bloquees = 0 } = {}) {
+  const trace = { etats: [], demandes: [], debloque: 0 };
+  return {
+    trace,
+    debloquerDemandes: async () => bloquees,
+    demandesEnAttente: async () => attente,
+    majDemande: async (id, champs) => trace.demandes.push([id, champs.statut, champs.message]),
+    commencerEtat: async (c) => trace.etats.push(['debut', c.statut, c.declencheur]),
+    terminerEtat: async (c) => trace.etats.push(['fin', c.statut, c.message, c.proposes]),
+  };
+}
+const bilanOk = { proposes: 3, ignores: 1, erreurs: 0, dejaVus: 0, details: [], arret: null };
+
+test('aucune demande : rien n\'est lancé et rien n\'est écrit', async () => {
+  const depot = fauxDepotDemandes();
+  let lance = 0;
+  const r = await traiterDemandes({ depot, lancer: async () => { lance++; return bilanOk; }, journal: () => {} });
+  assert.equal(r.traite, false);
+  assert.equal(lance, 0);
+  assert.deepEqual(depot.trace.etats, []);
+});
+
+test('demande en attente : état en cours, veille, état terminé, demande refermée', async () => {
+  const depot = fauxDepotDemandes({ attente: ['d1', 'd2'] });
+  const r = await traiterDemandes({ depot, lancer: async () => bilanOk, journal: () => {} });
+  assert.equal(r.traite, true);
+  assert.equal(r.statut, 'termine');
+  assert.deepEqual(depot.trace.etats[0], ['debut', 'en_cours', 'bouton']);
+  assert.equal(depot.trace.etats[1][1], 'termine');
+  assert.match(depot.trace.etats[1][2], /3 propositions ajoutées, 1 page écartée\./);
+  assert.deepEqual(depot.trace.demandes.map((d) => d.slice(0, 2)), [['d1', 'en_cours'], ['d2', 'en_cours'], ['d1', 'termine'], ['d2', 'termine']]);
+});
+
+test('une veille qui plante marque l\'état et les demandes en erreur (le bouton se débloque)', async () => {
+  const depot = fauxDepotDemandes({ attente: ['d1'] });
+  const r = await traiterDemandes({ depot, lancer: async () => { throw new Error('GEMINI_API_KEY manquante'); }, journal: () => {} });
+  assert.equal(r.statut, 'erreur');
+  assert.match(depot.trace.etats[1][2], /GEMINI_API_KEY manquante/);
+  assert.equal(depot.trace.demandes.at(-1)[1], 'erreur');
+});
+
+test('statut et message du bilan : arrêt pour quota = terminé avec explication ; que des erreurs = échec', () => {
+  assert.equal(statutBilan({ proposes: 0, ignores: 0, erreurs: 4 }), 'erreur');
+  assert.equal(statutBilan({ proposes: 2, ignores: 0, erreurs: 4 }), 'termine');
+  assert.equal(statutBilan({ proposes: 0, ignores: 0, erreurs: 0, arret: 'quota' }), 'termine');
+  assert.match(messageBilan({ proposes: 1, ignores: 0, erreurs: 2, arret: 'quota quotidien Gemini épuisé' }), /1 proposition ajoutée, 0 page écartée, 2 erreurs\. Arrêt anticipé : quota quotidien/);
+});
+
+test('executerAvecEtat sans demande (passage planifié) écrit quand même l\'état', async () => {
+  const depot = fauxDepotDemandes();
+  await executerAvecEtat({ depot, lancer: async () => bilanOk, declencheur: 'planifie', journal: () => {} });
+  assert.deepEqual(depot.trace.etats[0], ['debut', 'en_cours', 'planifie']);
+  assert.deepEqual(depot.trace.demandes, []);
 });
