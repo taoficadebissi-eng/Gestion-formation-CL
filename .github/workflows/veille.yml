@@ -1,0 +1,64 @@
+# Veille automatique de cours : une fois par semaine (et à la demande), le
+# programme lit les sites configurés dans veille/sources.json, fait extraire
+# les fiches par Gemini, et dépose des PROPOSITIONS dans Firestore. Rien n'est
+# publié : le super-admin valide dans l'application (« Propositions de cours »).
+#
+# Secrets requis (Settings > Secrets and variables > Actions) :
+#   GEMINI_API_KEY            clé de l'API Gemini
+#   FIREBASE_SERVICE_ACCOUNT  JSON du compte de service Firebase
+# Variable facultative : GEMINI_MODEL (modèle à utiliser ; sinon choix automatique)
+name: Veille de cours
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # chaque lundi, 6 h UTC
+  workflow_dispatch:
+    inputs:
+      simulation:
+        description: "Simulation : n'écrit rien, affiche ce qui serait proposé"
+        type: boolean
+        default: false
+      source:
+        description: 'Une seule source (ex : cursa), sinon toutes'
+        type: string
+        default: ''
+
+concurrency:
+  group: veille
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  veille:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: veille
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: veille/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Lancer la veille
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          SIMULATION: ${{ inputs.simulation }}
+          SOURCE: ${{ inputs.source }}
+        run: |
+          args=()
+          [ "$SIMULATION" = "true" ] && args+=(--dry-run)
+          [ -n "$SOURCE" ] && args+=("--source=$SOURCE")
+          node src/run.mjs "${args[@]}"
