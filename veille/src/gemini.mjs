@@ -48,20 +48,23 @@ export function corpsRequete(contenuPage, consignes) {
 }
 
 /**
- * Modèles utilisables, du plus souhaitable au moins souhaitable : d'abord celui
- * demandé (s'il existe), puis les « flash » stables les plus récents. Les
- * variantes lite / preview / image / audio sont écartées.
+ * Modèles utilisables, du plus souhaitable au moins souhaitable : celui demandé
+ * (s'il existe), puis les « flash » stables les plus récents (meilleure
+ * qualité, mais quota gratuit réduit), puis les « flash lite » stables
+ * (quota quotidien bien plus large). Les variantes preview / image / audio
+ * sont écartées.
  */
 export function ordonnerModeles(liste, souhaite) {
   const utilisables = liste
     .filter((m) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
     .map((m) => m.name.replace(/^models\//, ''));
-  const flash = utilisables
-    .filter((n) => /flash/i.test(n) && !/lite|image|tts|live|thinking|exp|preview|audio|robotics|latest/i.test(n))
-    .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
+  const ecartes = /image|tts|live|thinking|exp|preview|audio|robotics|latest/i;
+  const recents = (a, b) => b.localeCompare(a, 'en', { numeric: true });
+  const flash = utilisables.filter((n) => /flash/i.test(n) && !/lite/i.test(n) && !ecartes.test(n)).sort(recents);
+  const lite = utilisables.filter((n) => /flash.*lite|lite.*flash/i.test(n) && !ecartes.test(n)).sort(recents);
   const ordre = [];
   if (souhaite && utilisables.includes(souhaite)) ordre.push(souhaite);
-  for (const n of flash) if (!ordre.includes(n)) ordre.push(n);
+  for (const n of [...flash, ...lite]) if (!ordre.includes(n)) ordre.push(n);
   return ordre.length ? ordre : utilisables;
 }
 
@@ -94,6 +97,14 @@ export class ClientGemini {
     if (this.candidats[0] !== this.modele) console.log(`Modèle retenu automatiquement : « ${this.candidats[0]} ».`);
     this.modele = this.candidats[0];
     return this.modele;
+  }
+
+  /**
+   * Pause conseillée entre deux appels, selon le quota gratuit du modèle :
+   * « lite » = 15 requêtes/minute, les autres = 5 requêtes/minute.
+   */
+  pauseConseillee() {
+    return /lite/i.test(this.modele) ? 5000 : 13000;
   }
 
   /** Passe au modèle suivant ; retourne false s'il n'en reste plus. */
@@ -130,7 +141,13 @@ export class ClientGemini {
         throw new Error(`Gemini : aucun modèle utilisable (${r.status}) ${texte.slice(0, 160)}`);
       }
       if (r.status === 429) {
-        if (/per.?day|daily|quota exceeded/i.test(texte) && essai >= 2) throw new ErreurQuota('quota quotidien Gemini épuisé');
+        if (/per.?day|daily/i.test(texte)) {
+          // Quota du jour épuisé pour ce modèle : on tente le suivant
+          // (les « lite » ont un quota quotidien bien plus large).
+          if (this.suivant()) continue;
+          throw new ErreurQuota('quota quotidien Gemini épuisé');
+        }
+        if (/quota exceeded/i.test(texte) && essai >= 3) throw new ErreurQuota('quota Gemini épuisé');
         await this.pause(15000 * essai);
         continue;
       }

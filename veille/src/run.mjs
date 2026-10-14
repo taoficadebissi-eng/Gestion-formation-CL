@@ -72,7 +72,7 @@ export async function executer({ sources, criteres, gemini, depot, options, fetc
         bilan.erreurs++;
         journal(`  ! erreur sur ${url} : ${e.message}`);
       }
-      await pause(criteres.pauseEntreAppelsMs ?? 7000);
+      await pause(gemini.pauseConseillee?.() ?? criteres.pauseEntreAppelsMs ?? 7000);
     }
   }
   return bilan;

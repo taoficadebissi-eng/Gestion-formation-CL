@@ -167,10 +167,10 @@ test('quota Gemini épuisé : arrêt propre, reprise au prochain passage', async
   assert.equal(bilan.erreurs, 0);
 });
 
-test('ordonnerModeles : le plus récent « flash » stable d\'abord, variantes écartées', () => {
+test('ordonnerModeles : « flash » stables récents, puis « lite » ; preview/pro écartés', () => {
   const m = (n) => ({ name: `models/${n}`, supportedGenerationMethods: ['generateContent'] });
   const liste = [m('gemini-2.5-flash'), m('gemini-3.8-flash'), m('gemini-3.8-flash-lite'), m('gemini-3.8-flash-preview-09'), m('gemini-3.7-flash'), m('gemini-3.8-pro'), { name: 'models/emb', supportedGenerationMethods: ['embedContent'] }];
-  assert.deepEqual(ordonnerModeles(liste, ''), ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-2.5-flash']);
+  assert.deepEqual(ordonnerModeles(liste, ''), ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-3.8-flash-lite']);
   assert.deepEqual(ordonnerModeles(liste, 'gemini-3.7-flash').slice(0, 2), ['gemini-3.7-flash', 'gemini-3.8-flash']);
 });
 
@@ -209,4 +209,24 @@ test('ClientGemini passe au modèle suivant quand Google refuse le premier', asy
 
   const tousRefuses = new ClientGemini({ cle: 'k', modele: 'a', fetchFn: async () => reponse(404, 'gone'), pause: async () => {} });
   await assert.rejects(() => tousRefuses.extraire('p', 'c'), /aucun modèle utilisable/);
+});
+
+test('quota quotidien épuisé : bascule vers le modèle « lite » (quota plus large), sinon arrêt propre', async () => {
+  const reponse = (status, corps) => ({ status, ok: status < 300, json: async () => corps, text: async () => (typeof corps === 'string' ? corps : JSON.stringify(corps)) });
+  const ok = reponse(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(brutValide) }] } }] });
+  const m = (n) => ({ name: `models/${n}`, supportedGenerationMethods: ['generateContent'] });
+  const fetchFn = async (url) => {
+    if (url.includes('/models?')) return reponse(200, { models: [m('gemini-3.8-flash'), m('gemini-3.5-flash-lite')] });
+    return url.includes('gemini-3.8-flash:') ? reponse(429, 'Quota exceeded for metric GenerateRequestsPerDayPerProjectPerModel-FreeTier') : ok;
+  };
+  const g = new ClientGemini({ cle: 'k', fetchFn, pause: async () => {} });
+  await g.preparer();
+  assert.equal(g.modele, 'gemini-3.8-flash');
+  assert.equal(g.pauseConseillee(), 13000);
+  assert.equal((await g.extraire('p', 'c')).titre, 'HTML et CSS');
+  assert.equal(g.modele, 'gemini-3.5-flash-lite');
+  assert.equal(g.pauseConseillee(), 5000, 'rythme plus rapide pour un modèle lite');
+
+  const seul = new ClientGemini({ cle: 'k', modele: 'gemini-3.8-flash', fetchFn: async () => reponse(429, 'GenerateRequestsPerDayPerProjectPerModel-FreeTier'), pause: async () => {} });
+  await assert.rejects(() => seul.extraire('p', 'c'), /quota/i);
 });
