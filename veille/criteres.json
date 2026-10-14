@@ -2,7 +2,7 @@
   "langues": ["Français"],
   "gratuitObligatoire": true,
   "confianceMinimale": 0.5,
-  "maxPagesParSource": 8,
+  "maxPagesParSource": 5,
   "pauseEntreAppelsMs": 7000,
   "niveauxAcceptes": ["Débutant", "Intermédiaire", "Avancé"]
 }
