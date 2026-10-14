@@ -15,7 +15,7 @@ import { decouvrir } from './decouverte.mjs';
 import { executerAvecEtat, traiterDemandes } from './demandes.mjs';
 import { ClientGemini, ErreurQuota, consigne } from './gemini.mjs';
 import { formaterPourIA, resumerPage, telecharger } from './html.mjs';
-import { idProposition, validerExtraction } from './normalisation.mjs';
+import { idProposition, normaliserUrl, validerExtraction } from './normalisation.mjs';
 
 dns.setDefaultResultOrder('ipv4first');
 net.setDefaultAutoSelectFamilyAttemptTimeout?.(2000);
@@ -50,6 +50,15 @@ export async function executer({ sources, criteres, gemini, depot, options, fetc
       const id = idProposition(url);
       try {
         const { texte, urlFinale } = await telecharger(url, fetchFn);
+        // Redirigée vers une autre page (connexion exigée, cours retiré...) :
+        // inutile de dépenser une requête Gemini dessus.
+        if (!new RegExp(source.motifPage).test(normaliserUrl(urlFinale))) {
+          const raison = 'page redirigée (accès restreint ou cours retiré)';
+          if (depot && !options.dryRun) await depot.enregistrerIgnore(id, { url, raison, source });
+          bilan.ignores++;
+          journal(`  - écarté : ${url} (${raison})`);
+          continue;
+        }
         const page = resumerPage(texte, urlFinale);
         const brut = await gemini.extraire(formaterPourIA(page), consigne(source, criteres, connus.categories));
         const verdict = validerExtraction(brut, url, criteres);

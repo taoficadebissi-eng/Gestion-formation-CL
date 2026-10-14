@@ -4,7 +4,10 @@
       "id": "cursa",
       "nom": "Cursa",
       "actif": true,
-      "decouverte": { "type": "sitemap-txt", "url": "https://cursa.app/sitemaps/FR/vidcourses.txt" },
+      "decouverte": {
+        "type": "sitemap-txt",
+        "url": "https://cursa.app/sitemaps/FR/vidcourses.txt"
+      },
       "motifPage": "^https://cursa\\.app/fr/cours-gratuit/[a-z0-9-]+$",
       "indice": "Plateforme de cours en ligne gratuits. Certificat éventuellement payant : le préciser."
     },
@@ -12,7 +15,11 @@
       "id": "librecours",
       "nom": "LibreCours",
       "actif": true,
-      "decouverte": { "type": "liens", "url": "https://librecours.net/", "motifLien": "^/courses/[A-Za-z0-9_-]+/?$" },
+      "decouverte": {
+        "type": "liens",
+        "url": "https://librecours.net/",
+        "motifLien": "^/courses/[A-Za-z0-9_-]+/?$"
+      },
       "motifPage": "^https://librecours\\.net/courses/[A-Za-z0-9_-]+/?$",
       "indice": "Cours universitaires libres et gratuits en français (licences libres). La page peut ne montrer que le plan du cours : déduire le sujet du titre et des séquences."
     },
@@ -27,6 +34,55 @@
       "nom": "OpenClassrooms",
       "actif": false,
       "note": "Étape 2 : la liste des cours est chargée en JavaScript (pas de plan du site) ; demande un navigateur automatisé."
+    },
+    {
+      "id": "fun-mooc",
+      "nom": "FUN MOOC",
+      "actif": true,
+      "decouverte": {
+        "type": "api-richie",
+        "url": "https://www.fun-mooc.fr/api/v1.0/courses/",
+        "base": "https://www.fun-mooc.fr",
+        "etatsAcceptes": [
+          "ouvert"
+        ]
+      },
+      "motifPage": "^https://www\\.fun-mooc\\.fr/fr/cours/[a-z0-9-]+$",
+      "indice": "France Université Numérique : cours d'universités et d'écoles françaises, gratuits ; seul le certificat peut être payant. Pour « dateFin », donner la date de fin du cours ou des inscriptions si la page l'indique."
+    },
+    {
+      "id": "academy-africa",
+      "nom": "academy.AFRICA",
+      "actif": true,
+      "decouverte": {
+        "type": "sitemap-xml",
+        "url": "https://academy.africa/fr/wp-sitemap-posts-sfwd-courses-1.xml"
+      },
+      "motifPage": "^https://academy\\.africa/courses/[a-z0-9-]+$",
+      "indice": "Formations en ligne sur le numérique, la sécurité et l'information, pour l'Afrique. Vérifier soigneusement si l'accès est gratuit ou payant (prix en dollars = payant)."
+    },
+    {
+      "id": "microsoft-learn",
+      "nom": "Microsoft Learn",
+      "actif": true,
+      "decouverte": {
+        "type": "sitemap-xml",
+        "url": "https://learn.microsoft.com/_sitemaps/training_fr-fr_1.xml"
+      },
+      "motifPage": "^https://learn\\.microsoft\\.com/fr-fr/training/modules/[a-z0-9-]+$",
+      "indice": "Modules d'apprentissage gratuits de Microsoft (technologies, cloud, données, IA). Le module est gratuit ; seuls les examens de certification sont payants. Fournisseur : Microsoft Learn."
+    },
+    {
+      "id": "grafikart",
+      "nom": "Grafikart",
+      "actif": true,
+      "decouverte": {
+        "type": "liens",
+        "url": "https://grafikart.fr/formations",
+        "motifLien": "^/formations/[a-z0-9-]+$"
+      },
+      "motifPage": "^https://grafikart\\.fr/formations/[a-z0-9-]+$",
+      "indice": "Formations vidéo de développement web en français. Certaines sont réservées aux abonnés (payantes) : n'accepter que celles dont l'accès est gratuit."
     }
   ]
 }

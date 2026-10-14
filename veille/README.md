@@ -61,12 +61,20 @@ rm chemin/vers/cle.json   # ne jamais la garder dans le projet
 ```
 
 ## Sources
-| Source | Statut | Remarque |
-|---|---|---|
-| Cursa | actif | plan du site FR : ~370 cours |
-| LibreCours | actif | 22 cours, page d'accueil |
-| Alison | étape 2 | plan du site en anglais/espagnol seulement |
-| OpenClassrooms | étape 2 | liste chargée en JavaScript, pas de plan du site |
+| Source | Statut | Lecture | Remarque |
+|---|---|---|---|
+| Cursa | actif | plan du site FR | ~370 cours |
+| LibreCours | actif | liens de la page d'accueil | 22 cours |
+| FUN MOOC | actif | API publique (cours « ouverts » seulement) | ~146 cours ouverts ; pas de robots.txt |
+| academy.AFRICA | actif | plan du site WordPress FR | 19 cours ; certains réservés aux inscrits (écartés sans appeler l'IA) |
+| Microsoft Learn | actif | plan du site FR (14 Mo) | ~3 270 modules ; examens de certification payants |
+| Grafikart | actif | liens de la page des formations | 22 formations ; certaines payantes (filtrées) |
+| Alison | étape 2 | — | plan du site en anglais/espagnol seulement |
+| OpenClassrooms | étape 2 | — | liste chargée en JavaScript, pas de plan du site |
+
+Avec 6 sources actives et `maxPagesParSource: 3`, un passage analyse au plus
+**18 pages** (donc au plus 18 propositions). Si l'on ajoute des sources, baisser
+ce nombre dans `criteres.json`.
 
 Avant d'activer un site, vérifier ses conditions d'utilisation : certains
 interdisent l'extraction automatique, même quand `robots.txt` l'autorise.

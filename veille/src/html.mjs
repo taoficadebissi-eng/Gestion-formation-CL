@@ -4,17 +4,42 @@ import { robotsAutorise } from './robots.mjs';
 export const USER_AGENT = 'CoursLibreBot/1.0 (+https://courslibre-gf.web.app; veille de cours gratuits)';
 const TAILLE_MAX = 2 * 1024 * 1024;
 
-export async function telecharger(url, fetchFn = fetch) {
+/** Erreur réseau passagère (délai dépassé, connexion coupée) ou panne temporaire du serveur. */
+function passagere(e) {
+  const code = e.cause?.code ?? e.code ?? '';
+  return /ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENETUNREACH|EAI_AGAIN|UND_ERR|TimeoutError/.test(code + e.name) || /fetch failed|timeout|aborted/i.test(e.message);
+}
+
+/**
+ * Télécharge un document en respectant robots.txt. Trois tentatives en cas
+ * d'erreur réseau ou de panne passagère (5xx, 429).
+ *  - accept : type de contenu demandé (HTML pour une page, JSON pour une API,
+ *    « * / * » pour un plan du site : certains sites renvoient une page web si
+ *    on demande du HTML à une adresse de plan du site ou d'API).
+ *  - maxOctets : taille maximale acceptée (un plan de site peut peser 15 Mo).
+ */
+export async function telecharger(url, fetchFn = fetch, { accept = 'text/html,application/xhtml+xml,text/plain', maxOctets = TAILLE_MAX, essais = 3, attente = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
   if (!(await robotsAutorise(url, fetchFn))) throw new Error('interdit par robots.txt');
-  const reponse = await fetchFn(url, {
-    headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml,text/plain', 'Accept-Language': 'fr' },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(25000),
-  });
-  if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
-  const texte = await reponse.text();
-  if (texte.length > TAILLE_MAX) throw new Error('page trop volumineuse');
-  return { texte, urlFinale: reponse.url || url };
+  let derniere;
+  for (let essai = 1; essai <= essais; essai++) {
+    try {
+      const reponse = await fetchFn(url, {
+        headers: { 'User-Agent': USER_AGENT, Accept: accept, 'Accept-Language': 'fr' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30000),
+      });
+      if (reponse.status === 429 || reponse.status >= 500) throw Object.assign(new Error(`HTTP ${reponse.status}`), { passagere: true });
+      if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
+      const texte = await reponse.text();
+      if (texte.length > maxOctets) throw new Error('page trop volumineuse');
+      return { texte, urlFinale: reponse.url || url };
+    } catch (e) {
+      derniere = e;
+      if (!(e.passagere || passagere(e)) || essai === essais) throw e;
+      await attente(1500 * essai);
+    }
+  }
+  throw derniere;
 }
 
 const ENTITES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&apos;': "'", '&nbsp;': ' ', '&laquo;': '«', '&raquo;': '»' };

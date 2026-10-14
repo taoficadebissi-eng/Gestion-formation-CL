@@ -288,3 +288,71 @@ test('executerAvecEtat sans demande (passage planifié) écrit quand même l\'é
   assert.deepEqual(depot.trace.etats[0], ['debut', 'en_cours', 'planifie']);
   assert.deepEqual(depot.trace.demandes, []);
 });
+
+test('API Richie (FUN) : pagination, cours ouverts seulement, adresses absolues', async () => {
+  const pages = {
+    0: { meta: { total_count: 3 }, objects: [
+      { absolute_url: '/fr/cours/ouvert-a/', state: { text: "ouvert à l'inscription" } },
+      { absolute_url: '/fr/cours/ferme-b/', state: { text: 'archivé' } },
+      { absolute_url: '/fr/cours/ouvert-c/', state: { text: "Ouvert à l'inscription" } },
+    ] },
+  };
+  const appels = [];
+  const fetchFn = async (url) => {
+    appels.push(url);
+    if (url.endsWith('/robots.txt')) return { ok: false, status: 404, headers: new Headers(), text: async () => '' };
+    const offset = Number(new URL(url).searchParams.get('offset'));
+    return { ok: true, status: 200, headers: new Headers(), text: async () => JSON.stringify(pages[offset] ?? { meta: { total_count: 3 }, objects: [] }), url };
+  };
+  const { decouvrir } = await import('../src/decouverte.mjs');
+  const source = { id: 'fun', decouverte: { type: 'api-richie', url: 'https://fun-test.example/api/v1.0/courses/', base: 'https://fun-test.example', etatsAcceptes: ['ouvert'] }, motifPage: '^https://fun-test\\.example/fr/cours/[a-z0-9-]+$' };
+  assert.deepEqual(await decouvrir(source, fetchFn), ['https://fun-test.example/fr/cours/ouvert-a', 'https://fun-test.example/fr/cours/ouvert-c']);
+  assert.equal(appels.filter((u) => u.includes('/api/')).length, 1, 'une seule page lue quand le total tient dans une page');
+});
+
+test('téléchargement : nouvelle tentative après erreur réseau passagère, pas après un 404', async () => {
+  const { telecharger } = await import('../src/html.mjs');
+  const rep = (status, corps) => ({ ok: status < 300, status, headers: new Headers(), text: async () => corps, url: 'https://retry.example/x' });
+  const robots = (u) => (u.endsWith('/robots.txt') ? rep(404, '') : null);
+  let n = 0;
+  const instable = async (u, o) => robots(u) ?? (n++ < 2 ? (() => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ETIMEDOUT' } }); })() : rep(200, 'ok'));
+  assert.equal((await telecharger('https://retry.example/x', instable, { attente: async () => {} })).texte, 'ok');
+  assert.equal(n, 3);
+  let m = 0;
+  const panne = async (u) => robots(u) ?? (m++ === 0 ? rep(503, '') : rep(200, 'revenu'));
+  assert.equal((await telecharger('https://retry2.example/x', panne, { attente: async () => {} })).texte, 'revenu');
+  let k = 0;
+  const absent = async (u) => robots(u) ?? (k++, rep(404, ''));
+  await assert.rejects(() => telecharger('https://retry3.example/x', absent, { attente: async () => {} }), /HTTP 404/);
+  assert.equal(k, 1, 'un 404 n\'est pas réessayé');
+});
+
+test('téléchargement : le type de contenu demandé et la taille maximale sont respectés', async () => {
+  const { telecharger } = await import('../src/html.mjs');
+  const vus = [];
+  const fetchFn = async (u, o) => {
+    if (u.endsWith('/robots.txt')) return { ok: false, status: 404, headers: new Headers(), text: async () => '' };
+    vus.push(o.headers.Accept);
+    return { ok: true, status: 200, headers: new Headers(), text: async () => 'x'.repeat(5000), url: u };
+  };
+  await telecharger('https://accept.example/api', fetchFn, { accept: 'application/json' });
+  assert.deepEqual(vus, ['application/json']);
+  await assert.rejects(() => telecharger('https://accept.example/gros', fetchFn, { maxOctets: 1000 }), /volumineuse/);
+});
+
+test('page redirigée ailleurs (connexion exigée) : écartée sans appeler Gemini', async () => {
+  const reseau = async (url) => {
+    if (url.endsWith('/robots.txt')) return { ok: false, status: 404, headers: new Headers(), text: async () => '' };
+    if (url === 'https://academie.example/sitemap.xml') return { ok: true, status: 200, headers: new Headers(), text: async () => '<loc>https://academie.example/courses/ouvert</loc><loc>https://academie.example/courses/reserve</loc>', url };
+    if (url.endsWith('/reserve')) return { ok: true, status: 200, headers: new Headers(), text: async () => '<title>Connexion</title>', url: 'https://academie.example/login/?retour=1' };
+    return { ok: true, status: 200, headers: new Headers(), text: async () => '<title>Ouvert</title><p>Contenu</p>', url };
+  };
+  const ignores = []; let appels = 0;
+  const depot = { dejaConnus: async () => ({ urls: new Set(), categories: [], idsPropositions: new Set() }), enregistrerProposition: async () => {}, enregistrerIgnore: async (id, d) => ignores.push(d.raison) };
+  const sources = [{ id: 'a', nom: 'Académie', actif: true, decouverte: { type: 'sitemap-xml', url: 'https://academie.example/sitemap.xml' }, motifPage: '^https://academie\\.example/courses/[a-z]+$' }];
+  const bilan = await executer({ sources, criteres, gemini: { extraire: async () => { appels++; return brutValide; } }, depot, options: {}, fetchFn: reseau, journal: () => {}, pause: async () => {} });
+  assert.equal(appels, 1, 'seule la page réellement accessible est envoyée à l\'IA');
+  assert.equal(bilan.proposes, 1);
+  assert.equal(bilan.ignores, 1);
+  assert.match(ignores[0], /redirig/);
+});
