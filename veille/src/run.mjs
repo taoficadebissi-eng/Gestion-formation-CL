@@ -99,7 +99,7 @@ async function main() {
     else if (a.startsWith('--source=')) options.source = a.slice(9);
     else if (a.startsWith('--max=')) options.max = Number(a.slice(6));
   }
-  const gemini = new ClientGemini({ cle: process.env.GEMINI_API_KEY, modele: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
+  const gemini = new ClientGemini({ cle: process.env.GEMINI_API_KEY, modele: process.env.GEMINI_MODEL || '' });
   await gemini.preparer();
   let depot = null;
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {

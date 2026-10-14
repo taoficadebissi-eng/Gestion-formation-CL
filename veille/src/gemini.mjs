@@ -47,25 +47,40 @@ export function corpsRequete(contenuPage, consignes) {
   };
 }
 
-/** Choisit un modèle « flash » utilisable si celui demandé n'existe plus. */
-export function choisirModele(liste, souhaite) {
+/**
+ * Modèles utilisables, du plus souhaitable au moins souhaitable : d'abord celui
+ * demandé (s'il existe), puis les « flash » stables les plus récents. Les
+ * variantes lite / preview / image / audio sont écartées.
+ */
+export function ordonnerModeles(liste, souhaite) {
   const utilisables = liste
     .filter((m) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
     .map((m) => m.name.replace(/^models\//, ''));
-  if (utilisables.includes(souhaite)) return souhaite;
   const flash = utilisables
-    .filter((n) => /flash/i.test(n) && !/lite|image|tts|live|thinking|exp|preview|audio|robotics/i.test(n))
+    .filter((n) => /flash/i.test(n) && !/lite|image|tts|live|thinking|exp|preview|audio|robotics|latest/i.test(n))
     .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
-  return flash[0] ?? utilisables[0] ?? souhaite;
+  const ordre = [];
+  if (souhaite && utilisables.includes(souhaite)) ordre.push(souhaite);
+  for (const n of flash) if (!ordre.includes(n)) ordre.push(n);
+  return ordre.length ? ordre : utilisables;
+}
+
+export const choisirModele = (liste, souhaite) => ordonnerModeles(liste, souhaite)[0] ?? souhaite;
+
+/** Réponse signifiant « ce modèle n'est pas utilisable avec ce compte ». */
+export function modeleRefuse(status, texte) {
+  if (status === 404 || status === 403) return /model|modèle/i.test(texte) || status === 404;
+  return status === 429 && /limit:\s*0\b/i.test(texte);
 }
 
 export class ErreurQuota extends Error {}
 
 export class ClientGemini {
-  constructor({ cle, modele = 'gemini-2.5-flash', fetchFn = fetch, pause = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+  constructor({ cle, modele = '', fetchFn = fetch, pause = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
     if (!cle) throw new Error('GEMINI_API_KEY manquante');
     this.cle = cle;
     this.modele = modele;
+    this.candidats = modele ? [modele] : [];
     this.fetchFn = fetchFn;
     this.pause = pause;
   }
@@ -74,36 +89,53 @@ export class ClientGemini {
     const r = await this.fetchFn(`${BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': this.cle } });
     if (!r.ok) throw new Error(`Gemini (liste des modèles) : HTTP ${r.status}`);
     const { models = [] } = await r.json();
-    const choisi = choisirModele(models, this.modele);
-    if (choisi !== this.modele) console.log(`Modèle « ${this.modele} » indisponible, utilisation de « ${choisi} ».`);
-    this.modele = choisi;
-    return choisi;
+    this.candidats = ordonnerModeles(models, this.modele);
+    if (!this.candidats.length) throw new Error('Aucun modèle Gemini utilisable avec cette clé');
+    if (this.candidats[0] !== this.modele) console.log(`Modèle retenu automatiquement : « ${this.candidats[0]} ».`);
+    this.modele = this.candidats[0];
+    return this.modele;
+  }
+
+  /** Passe au modèle suivant ; retourne false s'il n'en reste plus. */
+  suivant() {
+    const i = this.candidats.indexOf(this.modele);
+    const prochain = this.candidats[i + 1];
+    if (!prochain) return false;
+    console.log(`Modèle « ${this.modele} » refusé : essai avec « ${prochain} ».`);
+    this.modele = prochain;
+    return true;
   }
 
   async extraire(contenuPage, consignes) {
-    for (let essai = 1; essai <= 4; essai++) {
+    for (let essai = 1; essai <= 6; essai++) {
       const r = await this.fetchFn(`${BASE}/models/${this.modele}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.cle },
         body: JSON.stringify(corpsRequete(contenuPage, consignes)),
         signal: AbortSignal.timeout(90000),
       });
+      if (r.ok) {
+        const json = await r.json();
+        const texte = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('');
+        if (!texte) throw new Error(`Gemini : réponse vide (${json.candidates?.[0]?.finishReason ?? json.promptFeedback?.blockReason ?? 'inconnu'})`);
+        try {
+          return JSON.parse(texte);
+        } catch {
+          throw new Error('Gemini : JSON invalide');
+        }
+      }
+      const texte = await r.text();
+      if (modeleRefuse(r.status, texte)) {
+        if (this.suivant()) continue;
+        throw new Error(`Gemini : aucun modèle utilisable (${r.status}) ${texte.slice(0, 160)}`);
+      }
       if (r.status === 429) {
-        const texte = await r.text();
         if (/per.?day|daily|quota exceeded/i.test(texte) && essai >= 2) throw new ErreurQuota('quota quotidien Gemini épuisé');
         await this.pause(15000 * essai);
         continue;
       }
       if (r.status >= 500) { await this.pause(5000 * essai); continue; }
-      if (!r.ok) throw new Error(`Gemini : HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
-      const json = await r.json();
-      const texte = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('');
-      if (!texte) throw new Error(`Gemini : réponse vide (${json.candidates?.[0]?.finishReason ?? json.promptFeedback?.blockReason ?? 'inconnu'})`);
-      try {
-        return JSON.parse(texte);
-      } catch {
-        throw new Error('Gemini : JSON invalide');
-      }
+      throw new Error(`Gemini : HTTP ${r.status} ${texte.slice(0, 200)}`);
     }
     throw new ErreurQuota('Gemini : limite de débit persistante');
   }
