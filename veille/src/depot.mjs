@@ -21,11 +21,12 @@ export class DepotFirestore {
       this.db.collection('cours_gratuits').select('lienCours', 'categorie').get(),
       this.db.collection('cours_propositions').select().get(),
     ]);
+    console.log(`Lecture Firestore : ${cours.size} document(s) dans cours_gratuits, ${propositions.size} dans cours_propositions.`);
     const urls = new Set();
     const categories = new Set();
     for (const doc of cours.docs) {
       const { lienCours, categorie } = doc.data();
-      try { if (lienCours) urls.add(normaliserUrl(lienCours)); } catch { /* ignoré */ }
+      try { if (lienCours) urls.add(normaliserUrl(lienCours)); } catch (e) { console.log(`Lien de cours illisible (${doc.id}) : ${String(lienCours).slice(0, 80)}`); }
       if (categorie) categories.add(categorie);
     }
     return { urls, categories: [...categories].sort(), idsPropositions: new Set(propositions.docs.map((d) => d.id)) };
