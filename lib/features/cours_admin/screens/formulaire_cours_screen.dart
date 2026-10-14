@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/blurred_toast.dart';
 import '../models/cours_gratuit_model.dart';
+import '../models/proposition_model.dart';
 import '../providers/cours_admin_provider.dart';
 
-/// Ajout (coursId == null) ou modification d'un cours.
+/// Ajout (aucun paramètre), modification d'un cours (coursId) ou correction
+/// d'une proposition de la veille avant publication (propositionId).
 class FormulaireCoursScreen extends ConsumerStatefulWidget {
   final String? coursId;
-  const FormulaireCoursScreen({super.key, this.coursId});
+  final String? propositionId;
+  const FormulaireCoursScreen({super.key, this.coursId, this.propositionId});
 
   @override
   ConsumerState<FormulaireCoursScreen> createState() =>
@@ -36,9 +39,11 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
   bool _enregistrement = false;
   bool _initialise = false;
   CoursGratuit? _existant;
+  PropositionCours? _proposition;
   DateTime? _dateFin;
 
   bool get _modification => widget.coursId != null;
+  bool get _depuisProposition => widget.propositionId != null;
 
   @override
   void dispose() {
@@ -167,7 +172,9 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
         effacerDateFin: _dateFin == null,
       );
       final service = ref.read(coursAdminServiceProvider);
-      if (_modification) {
+      if (_depuisProposition) {
+        await service.approuver(_proposition!, modifie: cours);
+      } else if (_modification) {
         await service.modifier(cours);
       } else {
         await service.ajouter(cours);
@@ -175,10 +182,16 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
       if (mounted) {
         BlurredToast.show(
           context,
-          _modification ? 'Cours modifie' : 'Cours ajoute',
+          _depuisProposition
+              ? 'Cours publie'
+              : (_modification ? 'Cours modifie' : 'Cours ajoute'),
           icon: Icons.check_circle_outline,
         );
-        context.go('/super-admin/cours');
+        context.go(
+          _depuisProposition
+              ? '/super-admin/propositions'
+              : '/super-admin/cours',
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -191,6 +204,30 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_depuisProposition && !_initialise) {
+      final propositions = ref.watch(propositionsProvider);
+      return propositions.when(
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (e, _) => Scaffold(body: Center(child: Text('Erreur : $e'))),
+        data: (liste) {
+          final p = liste
+              .where((x) => x.id == widget.propositionId)
+              .firstOrNull;
+          if (p == null) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Cette proposition n\'est plus en attente'),
+              ),
+            );
+          }
+          _proposition = p;
+          _remplir(p.cours);
+          _initialise = true;
+          return _formulaire();
+        },
+      );
+    }
     if (_modification && !_initialise) {
       final coursAsync = ref.watch(coursAdminProvider);
       return coursAsync.when(
@@ -216,13 +253,19 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
   Widget _formulaire() {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_modification ? 'Modifier le cours' : 'Nouveau cours'),
+        title: Text(
+          _depuisProposition
+              ? 'Modifier puis publier'
+              : (_modification ? 'Modifier le cours' : 'Nouveau cours'),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.go(
-            _modification
-                ? '/super-admin/cours/${widget.coursId}'
-                : '/super-admin/cours',
+            _depuisProposition
+                ? '/super-admin/propositions/${widget.propositionId}'
+                : (_modification
+                      ? '/super-admin/cours/${widget.coursId}'
+                      : '/super-admin/cours'),
           ),
         ),
       ),
@@ -398,9 +441,11 @@ class _FormulaireCoursScreenState extends ConsumerState<FormulaireCoursScreen> {
                             ),
                           )
                         : Text(
-                            _modification
-                                ? 'ENREGISTRER LES MODIFICATIONS'
-                                : 'PUBLIER LE COURS',
+                            _depuisProposition
+                                ? 'PUBLIER LE COURS'
+                                : (_modification
+                                      ? 'ENREGISTRER LES MODIFICATIONS'
+                                      : 'PUBLIER LE COURS'),
                           ),
                   ),
                   const SizedBox(height: 24),

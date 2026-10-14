@@ -1,0 +1,32 @@
+{
+  "sources": [
+    {
+      "id": "cursa",
+      "nom": "Cursa",
+      "actif": true,
+      "decouverte": { "type": "sitemap-txt", "url": "https://cursa.app/sitemaps/FR/vidcourses.txt" },
+      "motifPage": "^https://cursa\\.app/fr/cours-gratuit/[a-z0-9-]+$",
+      "indice": "Plateforme de cours en ligne gratuits. Certificat éventuellement payant : le préciser."
+    },
+    {
+      "id": "librecours",
+      "nom": "LibreCours",
+      "actif": true,
+      "decouverte": { "type": "liens", "url": "https://librecours.net/", "motifLien": "^/courses/[A-Za-z0-9_-]+/?$" },
+      "motifPage": "^https://librecours\\.net/courses/[A-Za-z0-9_-]+/?$",
+      "indice": "Cours universitaires libres et gratuits en français (licences libres). La page peut ne montrer que le plan du cours : déduire le sujet du titre et des séquences."
+    },
+    {
+      "id": "alison",
+      "nom": "Alison",
+      "actif": false,
+      "note": "Étape 2 : son plan du site ne liste que des cours en anglais et en espagnol ; à traiter avec un filtre de langue."
+    },
+    {
+      "id": "openclassrooms",
+      "nom": "OpenClassrooms",
+      "actif": false,
+      "note": "Étape 2 : la liste des cours est chargée en JavaScript (pas de plan du site) ; demande un navigateur automatisé."
+    }
+  ]
+}

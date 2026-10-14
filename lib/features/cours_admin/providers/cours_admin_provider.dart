@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/cours_gratuit_model.dart';
+import '../models/proposition_model.dart';
 import '../services/cours_admin_service.dart';
 
 final coursAdminServiceProvider = Provider<CoursAdminService>(
@@ -12,4 +13,8 @@ final coursAdminProvider = StreamProvider<List<CoursGratuit>>(
 
 final visiteursProvider = StreamProvider<int>(
   (ref) => ref.watch(coursAdminServiceProvider).ecouterVisiteurs(),
+);
+
+final propositionsProvider = StreamProvider<List<PropositionCours>>(
+  (ref) => ref.watch(coursAdminServiceProvider).ecouterPropositions(),
 );

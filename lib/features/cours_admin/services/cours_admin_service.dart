@@ -1,5 +1,6 @@
 import '../../../core/firebase/firestore_helpers.dart';
 import '../models/cours_gratuit_model.dart';
+import '../models/proposition_model.dart';
 
 /// Cours gratuits affichés sur la vitrine publique CoursLibre (projet
 /// séparé). Les règles Firestore réservent l'écriture au super-admin.
@@ -45,5 +46,44 @@ class CoursAdminService {
         .doc('visiteurs')
         .snapshots()
         .map((doc) => (doc.data()?['total'] as num?)?.toInt() ?? 0);
+  }
+
+  // ---------- Propositions de la veille automatique ----------
+
+  final _propositions = firestore.collection('cours_propositions');
+
+  /// Propositions en attente, les plus récentes d'abord.
+  Stream<List<PropositionCours>> ecouterPropositions() {
+    return _propositions
+        .where('statut', isEqualTo: 'a_valider')
+        .snapshots()
+        .map((s) {
+          final liste = s.docs.map(PropositionCours.fromFirestore).toList();
+          liste.sort(
+            (a, b) => (b.dateProposition ?? DateTime(2000)).compareTo(
+              a.dateProposition ?? DateTime(2000),
+            ),
+          );
+          return liste;
+        });
+  }
+
+  /// Publie la proposition (telle quelle, ou après correction) et la marque
+  /// comme approuvée, dans un même batch : jamais l'un sans l'autre.
+  Future<void> approuver(
+    PropositionCours proposition, {
+    CoursGratuit? modifie,
+  }) async {
+    final cours = modifie ?? proposition.cours;
+    final batch = firestore.batch();
+    batch.set(_col.doc(), cours.toFirestore(isNew: true));
+    batch.update(_propositions.doc(proposition.id), {'statut': 'approuve'});
+    await batch.commit();
+  }
+
+  /// Rejet : la proposition est conservée (statut « rejete ») pour que la
+  /// veille ne la repropose pas.
+  Future<void> rejeter(String propositionId) async {
+    await _propositions.doc(propositionId).update({'statut': 'rejete'});
   }
 }

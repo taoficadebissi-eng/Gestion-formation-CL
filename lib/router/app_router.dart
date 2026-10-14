@@ -8,6 +8,8 @@ import '../features/auth/register_screen.dart';
 import '../features/auth/splash_screen.dart';
 import '../features/auth/super_admin_login_screen.dart';
 import '../features/cours_admin/screens/detail_cours_admin_screen.dart';
+import '../features/cours_admin/screens/detail_proposition_screen.dart';
+import '../features/cours_admin/screens/liste_propositions_screen.dart';
 import '../features/cours_admin/screens/formulaire_cours_screen.dart';
 import '../features/cours_admin/screens/liste_cours_admin_screen.dart';
 import '../features/auth/verification_email_screen.dart';
@@ -232,6 +234,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/super-admin/connexion',
         builder: (context, state) => const SuperAdminLoginScreen(),
+      ),
+      GoRoute(
+        path: '/super-admin/propositions',
+        builder: (context, state) => const ListePropositionsScreen(),
+      ),
+      GoRoute(
+        path: '/super-admin/propositions/:id',
+        builder: (context, state) =>
+            DetailPropositionScreen(propositionId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/super-admin/propositions/:id/modifier',
+        builder: (context, state) =>
+            FormulaireCoursScreen(propositionId: state.pathParameters['id']),
       ),
       GoRoute(
         path: '/super-admin/cours',

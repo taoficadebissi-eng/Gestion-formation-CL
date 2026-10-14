@@ -183,6 +183,8 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
           const SizedBox(height: 16),
           const _CarteVisiteurs(),
           const SizedBox(height: 16),
+          const _BoutonPropositions(),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () => context.go('/super-admin/cours'),
             icon: const Icon(Icons.school_outlined),
@@ -303,6 +305,31 @@ class _CarteVisiteurs extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Accès aux cours proposés par la veille automatique, avec leur nombre.
+class _BoutonPropositions extends ConsumerWidget {
+  const _BoutonPropositions();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nombre = ref.watch(propositionsProvider).value?.length ?? 0;
+    return ElevatedButton.icon(
+      onPressed: () => context.go('/super-admin/propositions'),
+      icon: const Icon(Icons.auto_awesome),
+      label: Text(
+        nombre == 0
+            ? 'Propositions de cours'
+            : 'Propositions de cours ($nombre a valider)',
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: nombre == 0
+            ? Colors.grey.shade600
+            : Colors.orange.shade800,
+        foregroundColor: Colors.white,
       ),
     );
   }

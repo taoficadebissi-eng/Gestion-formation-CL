@@ -1,0 +1,14 @@
+{
+  "name": "veille-cours",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "veille": "node src/run.mjs",
+    "simulation": "node src/run.mjs --dry-run",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

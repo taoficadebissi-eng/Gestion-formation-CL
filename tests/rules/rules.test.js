@@ -312,3 +312,40 @@ describe('e-mail non verifie', () => {
     await assertFails(b.commit());
   });
 });
+
+describe('propositions de cours (veille)', () => {
+  const prop = { titre: 'Proposé', lienCours: 'https://cursa.app/x', lienImage: null, statut: 'a_valider', confiance: 0.9 };
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (c) => setDoc(doc(c.firestore(), 'cours_propositions/p1'), prop));
+  });
+
+  it('lecture et modification du statut : super-admin seulement', async () => {
+    await assertSucceeds(getDoc(doc(db(ctx.sup()), 'cours_propositions/p1')));
+    await assertSucceeds(getDocs(query(collection(db(ctx.sup()), 'cours_propositions'), where('statut', '==', 'a_valider'))));
+    await assertFails(getDoc(doc(db(ctx.admin()), 'cours_propositions/p1')));
+    await assertFails(getDoc(doc(db(ctx.anon()), 'cours_propositions/p1')));
+    await assertFails(getDoc(doc(db(ctx.supNonVerifie()), 'cours_propositions/p1')));
+    await assertSucceeds(updateDoc(doc(db(ctx.sup()), 'cours_propositions/p1'), { statut: 'rejete' }));
+    await assertFails(updateDoc(doc(db(ctx.admin()), 'cours_propositions/p1'), { statut: 'approuve' }));
+  });
+
+  it("aucune création par un client, pas d'autre champ modifiable, statut borné", async () => {
+    await assertFails(setDoc(doc(db(ctx.sup()), 'cours_propositions/p2'), prop));
+    await assertFails(setDoc(doc(db(ctx.admin()), 'cours_propositions/p3'), prop));
+    await assertFails(updateDoc(doc(db(ctx.sup()), 'cours_propositions/p1'), { titre: 'Autre' }));
+    await assertFails(updateDoc(doc(db(ctx.sup()), 'cours_propositions/p1'), { statut: 'publie' }));
+  });
+
+  it('approbation : cours publié + proposition marquée, dans un même batch', async () => {
+    const d = db(ctx.sup());
+    const b = writeBatch(d);
+    b.set(doc(d, 'cours_gratuits/nouveau1'), { titre: 'Proposé', lienCours: 'https://cursa.app/x', lienImage: null, dateFin: null });
+    b.update(doc(d, 'cours_propositions/p1'), { statut: 'approuve' });
+    await assertSucceeds(b.commit());
+    // un lien non https dans une proposition ne peut pas être publié
+    const mauvais = writeBatch(d);
+    mauvais.set(doc(d, 'cours_gratuits/nouveau2'), { titre: 'X', lienCours: 'http://non-https.example', lienImage: null });
+    mauvais.update(doc(d, 'cours_propositions/p1'), { statut: 'approuve' });
+    await assertFails(mauvais.commit());
+  });
+});

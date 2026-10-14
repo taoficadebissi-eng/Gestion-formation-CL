@@ -510,6 +510,21 @@ service cloud.firestore {
     }
 
     // ========================================
+    // PROPOSITIONS DE COURS (veille automatique + validation)
+    // ========================================
+    // Créées par le programme de veille (SDK Admin, qui contourne ces règles).
+    // Le super-admin les lit, change leur statut (approuvée / rejetée) ou les
+    // supprime ; aucun client ne peut en créer.
+    match /cours_propositions/{propositionId} {
+      allow read: if isSuperAdmin();
+      allow create: if false;
+      allow update: if isSuperAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statut'])
+        && request.resource.data.statut in ['a_valider', 'approuve', 'rejete'];
+      allow delete: if isSuperAdmin();
+    }
+
+    // ========================================
     // COURSLIBRE : cours gratuits et compteur de visiteurs
     // ========================================
     // Lecture publique ; écriture des cours réservée au super-admin. Le
