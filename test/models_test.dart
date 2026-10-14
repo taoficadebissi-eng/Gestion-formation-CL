@@ -85,7 +85,10 @@ void main() {
         'id': 'f',
         'date_creation': '2026-01-01T00:00:00.000',
       });
-      expect(formation.copyWith(prerequisId: '').toJson()['prerequis_id'], isNull);
+      expect(
+        formation.copyWith(prerequisId: '').toJson()['prerequis_id'],
+        isNull,
+      );
       expect(formation.toJson()['formateur_id'], isNull);
     });
 
