@@ -72,7 +72,10 @@ export function ordonnerModeles(liste, souhaite) {
   const lite = utilisables.filter((n) => version(n) && version(n)[2]).sort(parVersion);
   const ordre = [];
   if (souhaite && utilisables.includes(souhaite)) ordre.push(souhaite);
-  for (const n of [...flash, ...lite]) if (!ordre.includes(n)) ordre.push(n);
+  // Le meilleur « flash », puis les « lite » (quota gratuit large), puis les
+  // « flash » plus anciens : l'offre gratuite n'ouvre en général que les modèles
+  // récents, inutile de passer par les anciens avant les « lite ».
+  for (const n of [flash[0], ...lite, ...flash.slice(1)]) if (n && !ordre.includes(n)) ordre.push(n);
   return ordre.length ? ordre : utilisables;
 }
 
@@ -126,7 +129,7 @@ export class ClientGemini {
   }
 
   async extraire(contenuPage, consignes) {
-    for (let essai = 1; essai <= 6; essai++) {
+    for (let essai = 1; essai <= 10; essai++) {
       const r = await this.fetchFn(`${BASE}/models/${this.modele}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.cle },
@@ -155,8 +158,13 @@ export class ClientGemini {
           if (this.suivant()) continue;
           throw new ErreurQuota('quota quotidien Gemini épuisé');
         }
-        if (/quota exceeded/i.test(texte) && essai >= 3) throw new ErreurQuota('quota Gemini épuisé');
-        await this.pause(15000 * essai);
+        // Limite par minute : on attend un peu ; si elle persiste, on essaie le
+        // modèle suivant plutôt que d'abandonner toute la veille.
+        if (essai >= 3) {
+          if (this.suivant()) continue;
+          throw new ErreurQuota('Gemini : limite de débit persistante');
+        }
+        await this.pause(20000 * essai);
         continue;
       }
       if (r.status >= 500) { await this.pause(5000 * essai); continue; }

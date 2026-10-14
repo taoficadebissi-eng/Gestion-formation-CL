@@ -171,8 +171,8 @@ test('quota Gemini épuisé : arrêt propre, reprise au prochain passage', async
 test('ordonnerModeles : « flash » stables récents, puis « lite » ; preview/pro écartés', () => {
   const m = (n) => ({ name: `models/${n}`, supportedGenerationMethods: ['generateContent'] });
   const liste = [m('gemini-2.5-flash'), m('gemini-3.8-flash'), m('gemini-3.8-flash-lite'), m('gemini-3.8-flash-preview-09'), m('gemini-3.7-flash'), m('gemini-3.8-pro'), m('gemini-omni-1.1-flash'), m('gemini-flash-latest'), m('gemini-3.10-flash'), { name: 'models/emb', supportedGenerationMethods: ['embedContent'] }];
-  assert.deepEqual(ordonnerModeles(liste, ''), ['gemini-3.10-flash', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-3.8-flash-lite']);
-  assert.deepEqual(ordonnerModeles(liste, 'gemini-3.7-flash').slice(0, 2), ['gemini-3.7-flash', 'gemini-3.10-flash']);
+  assert.deepEqual(ordonnerModeles(liste, ''), ['gemini-3.10-flash', 'gemini-3.8-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-2.5-flash']);
+  assert.deepEqual(ordonnerModeles(liste, 'gemini-3.7-flash').slice(0, 3), ['gemini-3.7-flash', 'gemini-3.10-flash', 'gemini-3.8-flash-lite']);
   assert.ok(!ordonnerModeles(liste, '').some((n) => /omni|latest|preview|pro/.test(n)));
 });
 
@@ -355,4 +355,21 @@ test('page redirigée ailleurs (connexion exigée) : écartée sans appeler Gemi
   assert.equal(bilan.proposes, 1);
   assert.equal(bilan.ignores, 1);
   assert.match(ignores[0], /redirig/);
+});
+
+test('limite de débit persistante : on passe au modèle suivant au lieu d\'abandonner', async () => {
+  const reponse = (status, corps) => ({ status, ok: status < 300, json: async () => corps, text: async () => (typeof corps === 'string' ? corps : JSON.stringify(corps)) });
+  const ok = reponse(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(brutValide) }] } }] });
+  const m = (n) => ({ name: `models/${n}`, supportedGenerationMethods: ['generateContent'] });
+  const fetchFn = async (url) => {
+    if (url.includes('/models?')) return reponse(200, { models: [m('gemini-3.8-flash'), m('gemini-3.5-flash-lite')] });
+    return url.includes('gemini-3.8-flash:') ? reponse(429, 'Rate limit: requests per minute exceeded') : ok;
+  };
+  const attentes = [];
+  const g = new ClientGemini({ cle: 'k', fetchFn, pause: async (ms) => attentes.push(ms) });
+  await g.preparer();
+  assert.equal(g.modele, 'gemini-3.8-flash');
+  assert.equal((await g.extraire('p', 'c')).titre, 'HTML et CSS');
+  assert.equal(g.modele, 'gemini-3.5-flash-lite');
+  assert.deepEqual(attentes, [20000, 40000], 'deux attentes courtes avant de changer de modèle');
 });
